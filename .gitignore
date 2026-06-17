@@ -24,3 +24,8 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+# Temporary copies and audit report
+"digital_twin_freio_eletromagn_tico (2).html"
+"digital_twin_freio_eletromagn_tico copy.html"
+Auditoria_UX_UI_DigitalTwin.md
