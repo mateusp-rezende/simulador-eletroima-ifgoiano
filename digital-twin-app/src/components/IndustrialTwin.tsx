@@ -210,9 +210,14 @@ export const IndustrialTwin: React.FC = () => {
 
             const sys = sysRef.current;
 
-            // ── STEP 1: RL circuit (dI/dt = (V − R·I) / L)
-            const dI = ((sys.targetV - sys.R * sys.I) / sys.L) * dt;
-            sys.I += dI;
+            // ── STEP 1: RL circuit (analytical update to avoid stiff ODE instability)
+            const I_final = sys.R > 0 ? (sys.targetV / sys.R) : 0;
+            if (sys.R > 0) {
+                const tau = sys.L / sys.R;
+                sys.I = I_final + (sys.I - I_final) * Math.exp(-dt / tau);
+            } else {
+                sys.I += (sys.targetV / sys.L) * dt;
+            }
             if (sys.I < 0) sys.I = 0;
 
             // ── STEP 2: Maxwell force (F ∝ (N·I)² / g²)
