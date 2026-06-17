@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useLayoutEffect } from 'react';
 
 interface ComponentInfo {
     title: string;
@@ -174,6 +174,7 @@ export const PhysicsTutorial: React.FC = () => {
     const rlChartRef = useRef<HTMLCanvasElement | null>(null);
     const forceCanvasRef = useRef<HTMLCanvasElement | null>(null);
     const benchCanvasRef = useRef<HTMLCanvasElement | null>(null);
+    const hudRef = useRef<HTMLDivElement | null>(null);
 
     // Dynamic calculated states for formula sheets
     const s1MMF = (s1Turns * s1Current).toFixed(0);
@@ -225,6 +226,29 @@ export const PhysicsTutorial: React.FC = () => {
         const el = document.getElementById(SECTIONS[idx]);
         if (el) el.scrollIntoView({ behavior: 'smooth' });
     };
+
+    // Adjust HUD coordinates dynamically based on actual rendered size to prevent screen boundaries overflow
+    useLayoutEffect(() => {
+        if (!inspectId || !hudRef.current) return;
+        const el = hudRef.current;
+        const rect = el.getBoundingClientRect();
+        
+        const pw = rect.width;
+        const ph = rect.height;
+        const margin = 12;
+        
+        let px = hudCoords.x;
+        let py = hudCoords.y;
+        
+        if (px + pw > window.innerWidth - margin) px = window.innerWidth - pw - margin;
+        if (py + ph > window.innerHeight - margin) py = window.innerHeight - ph - margin;
+        if (px < margin) px = margin;
+        if (py < margin) py = margin;
+        
+        if (px !== hudCoords.x || py !== hudCoords.y) {
+            setHudCoords({ x: px, y: py });
+        }
+    }, [inspectId, hudCoords.x, hudCoords.y]);
 
     // --- ANIMATION EFFECTS ---
 
@@ -976,6 +1000,7 @@ export const PhysicsTutorial: React.FC = () => {
             {/* Floating HUD inspect popup details */}
             {inspectId && POPUP_DB[inspectId] && (
                 <div 
+                    ref={hudRef}
                     className="hud-panel visible" 
                     style={{ left: `${hudCoords.x}px`, top: `${hudCoords.y}px`, zIndex: 1000 }}
                     onClick={(e) => e.stopPropagation()}

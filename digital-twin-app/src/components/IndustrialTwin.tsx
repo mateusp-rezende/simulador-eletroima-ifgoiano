@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useLayoutEffect } from 'react';
 
 const DEFAULTS = { R: 38.0, L: 0.8, N: 500, g: 0.5 };
 
@@ -94,6 +94,7 @@ export const IndustrialTwin: React.FC = () => {
     // Canvas refs
     const macroCanvasRef = useRef<HTMLCanvasElement | null>(null);
     const liveChartRef = useRef<HTMLCanvasElement | null>(null);
+    const hudRef = useRef<HTMLDivElement | null>(null);
 
     // Fast mutable physics state to keep animation loops at 60Hz
     const sysRef = useRef<PhysicsState>({
@@ -144,6 +145,29 @@ export const IndustrialTwin: React.FC = () => {
     useEffect(() => { sysRef.current.N = sliderN; }, [sliderN]);
     useEffect(() => { sysRef.current.g = sliderG; }, [sliderG]);
 
+    // Adjust HUD coordinates dynamically based on actual rendered size to prevent screen boundaries overflow
+    useLayoutEffect(() => {
+        if (!selectedComponent || !hudRef.current) return;
+        const el = hudRef.current;
+        const rect = el.getBoundingClientRect();
+        
+        const pw = rect.width;
+        const ph = rect.height;
+        const margin = 12;
+        
+        let px = hudCoords.x;
+        let py = hudCoords.y;
+        
+        if (px + pw > window.innerWidth - margin) px = window.innerWidth - pw - margin;
+        if (py + ph > window.innerHeight - margin) py = window.innerHeight - ph - margin;
+        if (px < margin) px = margin;
+        if (py < margin) py = margin;
+        
+        if (px !== hudCoords.x || py !== hudCoords.y) {
+            setHudCoords({ x: px, y: py });
+        }
+    }, [selectedComponent, hudCoords.x, hudCoords.y]);
+
     // Reset parameters handler
     const resetPhysics = () => {
         setSliderR(DEFAULTS.R);
@@ -179,9 +203,8 @@ export const IndustrialTwin: React.FC = () => {
         let macroTableHistory: number[] = [];
         let activeFmeaKeys = '';
 
-        const resizeCanvases = () => {
+        const resizeObserver = new ResizeObserver(() => {
             const dpr = window.devicePixelRatio || 1;
-            
             if (macroCanvasRef.current) {
                 const cv = macroCanvasRef.current;
                 cv.width = Math.round(cv.clientWidth * dpr);
@@ -189,14 +212,13 @@ export const IndustrialTwin: React.FC = () => {
             }
             if (liveChartRef.current) {
                 const cv = liveChartRef.current;
-                const rect = cv.getBoundingClientRect();
-                cv.width = Math.round(rect.width * dpr);
-                cv.height = Math.round(rect.height * dpr);
+                cv.width = Math.round(cv.clientWidth * dpr);
+                cv.height = Math.round(cv.clientHeight * dpr);
             }
-        };
+        });
 
-        resizeCanvases();
-        window.addEventListener('resize', resizeCanvases);
+        if (macroCanvasRef.current) resizeObserver.observe(macroCanvasRef.current);
+        if (liveChartRef.current) resizeObserver.observe(liveChartRef.current);
 
         const loop = (timestamp: number) => {
             if (document.hidden) {
@@ -335,26 +357,29 @@ export const IndustrialTwin: React.FC = () => {
                     const cw = cv.width / dpr;
                     const ch = cv.height / dpr;
 
+                    const scale = ch / 215;
+                    const base_cw = cw / scale;
+
                     mCtx.save();
-                    mCtx.scale(dpr, dpr);
-                    mCtx.clearRect(0, 0, cw, ch);
+                    mCtx.scale(dpr * scale, dpr * scale);
+                    mCtx.clearRect(0, 0, base_cw, 215);
 
                     // Gantry column (left)
                     const colX = 20, colW = 36;
                     mCtx.fillStyle = '#0f1d33';
-                    mCtx.fillRect(colX, 14, colW, ch - 28);
+                    mCtx.fillRect(colX, 14, colW, 215 - 28);
                     mCtx.strokeStyle = 'rgba(34,211,238,0.2)'; mCtx.lineWidth = 1;
-                    mCtx.strokeRect(colX, 14, colW, ch - 28);
+                    mCtx.strokeRect(colX, 14, colW, 215 - 28);
                     
                     // Column stripes
                     mCtx.fillStyle = 'rgba(34,211,238,0.06)';
-                    for (let sy = 24; sy < ch - 28; sy += 18) {
+                    for (let sy = 24; sy < 215 - 28; sy += 18) {
                         mCtx.fillRect(colX + 3, sy, colW - 6, 2);
                     }
 
                     // Arm and Tube (support rails)
-                    const tubeX = Math.round(cw * 0.42);
-                    const armY = Math.round(ch * 0.3);
+                    const tubeX = Math.round(base_cw * 0.42);
+                    const armY = Math.round(215 * 0.3);
                     mCtx.fillStyle = '#0f1e35';
                     mCtx.fillRect(colX + colW, armY - 5, tubeX - (colX + colW) + 20, 10);
                     mCtx.strokeStyle = 'rgba(56,139,253,0.35)'; mCtx.strokeRect(colX + colW, armY - 5, tubeX - (colX + colW) + 20, 10);
@@ -380,7 +405,7 @@ export const IndustrialTwin: React.FC = () => {
                     // Radiation cone
                     if (sys.targetV > 0.3) {
                         const ca = (sys.targetV / 24) * 0.07;
-                        const coneBaseY = ch * 0.55 - 36;
+                        const coneBaseY = 215 * 0.55 - 36;
                         const spread = (coneBaseY - (armY + 4)) * 0.38;
                         mCtx.beginPath();
                         mCtx.moveTo(tubeX - 18, armY + 4);
@@ -397,8 +422,8 @@ export const IndustrialTwin: React.FC = () => {
 
                     // Track / Linear rail system
                     const railLeft = colX + colW + 4;
-                    const railRight = cw - 14;
-                    const trackY = Math.round(ch * 0.55);
+                    const railRight = base_cw - 14;
+                    const trackY = Math.round(215 * 0.55);
                     mCtx.fillStyle = '#172d4a';
                     mCtx.fillRect(railLeft, trackY - 6, railRight - railLeft, 6);
                     mCtx.fillStyle = 'rgba(100,160,220,0.28)';
@@ -422,8 +447,8 @@ export const IndustrialTwin: React.FC = () => {
 
                     // Motion ghost trail
                     const speedFactor = sys.rpm / sys.maxRpm;
-                    const amplitude = Math.min(cw * 0.24, 120);
-                    const tableCX = cw * 0.5;
+                    const amplitude = Math.min(base_cw * 0.24, 120);
+                    const tableCX = base_cw * 0.5;
                     const tableX = tableCX + amplitude * Math.sin(sys.tablePhase);
                     const tableW = 158, tableH = 34;
                     const tableTop = trackY - tableH - 2;
@@ -535,20 +560,20 @@ export const IndustrialTwin: React.FC = () => {
 
                     // Detector flat panel
                     const dtW = 90, dtH = 12;
-                    const dtX = tubeX - dtW / 2, dtY = ch - 18;
+                    const dtX = tubeX - dtW / 2, dtY = 215 - 18;
                     mCtx.fillStyle = '#0a1422';
                     mCtx.beginPath(); mCtx.roundRect(dtX, dtY, dtW, dtH, 2); mCtx.fill();
                     mCtx.strokeStyle = 'rgba(34,211,238,0.18)'; mCtx.lineWidth = 1;
                     mCtx.beginPath(); mCtx.roundRect(dtX, dtY, dtW, dtH, 2); mCtx.stroke();
                     mCtx.fillStyle = 'rgba(34,211,238,0.28)';
-                    mCtx.font = '7px JetBrains Mono'; mCtx.textAlign = 'center';
+                    mCtx.font = '700 7px JetBrains Mono'; mCtx.textAlign = 'center';
                     mCtx.fillText('DETECTOR FPD', tubeX, dtY + 9);
 
                     // Velocity readout text
                     const vDisplay = (Math.abs(Math.cos(sys.tablePhase)) * speedFactor * 0.32).toFixed(2);
                     mCtx.fillStyle = 'rgba(77,95,115,0.65)';
                     mCtx.font = '9px JetBrains Mono'; mCtx.textAlign = 'right';
-                    mCtx.fillText(`v = ${vDisplay} m/s`, cw - 16, ch - 6);
+                    mCtx.fillText(`v = ${vDisplay} m/s`, base_cw - 16, 215 - 6);
 
                     mCtx.restore();
                 }
@@ -624,7 +649,7 @@ export const IndustrialTwin: React.FC = () => {
 
         return () => {
             cancelAnimationFrame(animationFrameId);
-            window.removeEventListener('resize', resizeCanvases);
+            resizeObserver.disconnect();
         };
     }, [macroState, detailState]);
 
@@ -640,40 +665,45 @@ export const IndustrialTwin: React.FC = () => {
         const mx = e.clientX - rect.left;
         const my = e.clientY - rect.top;
 
+        const scale = ch / 215;
+        const base_cw = cw / scale;
+        const bx = mx / scale;
+        const by = my / scale;
+
         // Position coordinates mirroring the rendering coordinates
         const colX = 20, colW = 36;
-        const tubeX = Math.round(cw * 0.42);
-        const armY = Math.round(ch * 0.3);
+        const tubeX = Math.round(base_cw * 0.42);
+        const armY = Math.round(215 * 0.3);
         const tbW = 70, tbH = 44;
         const tbX = tubeX - tbW / 2, tbY = armY - tbH - 4;
-        const amplitude = Math.min(cw * 0.24, 120);
-        const tableCX = cw * 0.5;
+        const amplitude = Math.min(base_cw * 0.24, 120);
+        const tableCX = base_cw * 0.5;
         const tableX = tableCX + amplitude * Math.sin(sysRef.current.tablePhase);
         const tableW = 158, tableH = 34;
-        const trackY = Math.round(ch * 0.55);
+        const trackY = Math.round(215 * 0.55);
         const tableTop = trackY - tableH - 2;
         const bhW = 62, bhH = 22;
         const bhX = tableX - bhW / 2, bhY = trackY + 4;
         const dtW = 90, dtH = 12;
-        const dtX = tubeX - dtW / 2, dtY = ch - 18;
+        const dtX = tubeX - dtW / 2, dtY = 215 - 18;
 
-        if (mx >= bhX - 4 && mx <= bhX + bhW + 4 && my >= bhY - 4 && my <= bhY + bhH + 16) {
+        if (bx >= bhX - 4 && bx <= bhX + bhW + 4 && by >= bhY - 4 && by <= bhY + bhH + 16) {
             inspectComponent('disc', e.clientX, e.clientY);
             return;
         }
-        if (mx >= tableX - tableW / 2 && mx <= tableX + tableW / 2 && my >= tableTop && my <= trackY + 4) {
+        if (bx >= tableX - tableW / 2 && bx <= tableX + tableW / 2 && by >= tableTop && by <= trackY + 4) {
             inspectComponent('mesa', e.clientX, e.clientY);
             return;
         }
-        if (mx >= tbX - 4 && mx <= tbX + tbW + 4 && my >= tbY - 4 && my <= armY + 4) {
+        if (bx >= tbX - 4 && bx <= tbX + tbW + 4 && by >= tbY - 4 && by <= armY + 4) {
             inspectComponent('emissor', e.clientX, e.clientY);
             return;
         }
-        if (mx >= dtX - 4 && mx <= dtX + dtW + 4 && my >= dtY - 4 && my <= dtY + dtH + 4) {
+        if (bx >= dtX - 4 && bx <= dtX + dtW + 4 && by >= dtY - 4 && by <= dtY + dtH + 4) {
             inspectComponent('detector', e.clientX, e.clientY);
             return;
         }
-        if (mx >= colX && mx <= colX + colW && my >= 14 && my <= ch - 14) {
+        if (bx >= colX && bx <= colX + colW && by >= 14 && by <= 215 - 14) {
             inspectComponent('gantry', e.clientX, e.clientY);
             return;
         }
@@ -830,6 +860,7 @@ export const IndustrialTwin: React.FC = () => {
 
                     {/* Floating HUD popup */}
                     <div 
+                        ref={hudRef}
                         className={`hud-panel ${selectedComponent ? 'visible' : ''}`}
                         style={{
                             left: `${hudCoords.x}px`,
