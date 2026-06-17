@@ -192,7 +192,7 @@ export const PhysicsTutorial: React.FC = () => {
     const triggerInspect = (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
         setInspectId(id);
-        const pw = 328, ph = 340, mg = 12;
+        const pw = 328, ph = 420, mg = 12;
         let px = e.clientX + 16;
         let py = e.clientY - 24;
         if (px + pw > window.innerWidth - mg) px = e.clientX - pw - 12;
@@ -690,7 +690,6 @@ export const PhysicsTutorial: React.FC = () => {
         const dpr = window.devicePixelRatio || 1;
         const SZ = 320;
         cv.width = SZ * dpr; cv.height = SZ * dpr;
-        cv.style.height = SZ + 'px';
         ctx.scale(dpr, dpr);
 
         let dash = 0;
@@ -948,8 +947,7 @@ export const PhysicsTutorial: React.FC = () => {
 
     return (
         <div 
-            className="app-container" 
-            style={{ gridTemplateRows: '0px 1fr' }} // hide main nav spacing if nested, or handled globally
+            style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}
             onClick={() => { setInspectId(null); }}
         >
             {/* Scroll progress loading line */}
@@ -1080,7 +1078,7 @@ export const PhysicsTutorial: React.FC = () => {
                         <div className="interactive-two-column">
                             {/* Canvas Block */}
                             <div>
-                                <canvas ref={coilCanvasRef} style={{ width: '100%', aspectRatio: '1', borderRadius: '12px', background: 'rgba(4,9,15,0.8)', border: '1px solid var(--border)', display: 'block' }} />
+                                <canvas ref={coilCanvasRef} style={{ width: '100%', maxWidth: '340px', aspectRatio: '1', borderRadius: '12px', background: 'rgba(4,9,15,0.8)', border: '1px solid var(--border)', display: 'block', margin: '0 auto' }} />
                                 <div style={{ display: 'flex', gap: '10px', marginTop: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
                                     <button className={`external-navigation-btn clickable-inspection-spot ${inspectId === 'bobina' ? 'inspecting-active' : ''}`} onClick={(e) => triggerInspect('bobina', e)}>🔍 Bobina (fio)</button>
                                     <button className={`external-navigation-btn clickable-inspection-spot ${inspectId === 'nucleo' ? 'inspecting-active' : ''}`} onClick={(e) => triggerInspect('nucleo', e)}>🔍 Núcleo de Ferro</button>
@@ -1226,7 +1224,7 @@ export const PhysicsTutorial: React.FC = () => {
 
                         <div className="interactive-two-column">
                             <div>
-                                <canvas ref={forceCanvasRef} />
+                                <canvas ref={forceCanvasRef} style={{ width: '100%', maxWidth: '320px', aspectRatio: '1', borderRadius: '12px', background: '#06111e', border: '1px solid var(--border)', display: 'block', margin: '0 auto' }} />
                                 <div style={{ display: 'flex', gap: '10px', marginTop: '12px', flexWrap: 'wrap' }}>
                                     <button className="external-navigation-btn" onClick={(e) => triggerInspect('entreferro', e)}>🔍 Entreferro (g)</button>
                                     <button className="external-navigation-btn" onClick={(e) => triggerInspect('armadura', e)}>🔍 Objeto (Sapata)</button>

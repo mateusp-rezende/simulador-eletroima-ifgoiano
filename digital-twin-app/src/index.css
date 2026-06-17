@@ -365,6 +365,8 @@ body.perf-mode * {
 .hud-panel {
     position: fixed;
     width: min(320px, 90vw);
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
     background: rgba(9, 18, 38, 0.96);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
@@ -951,21 +953,20 @@ body.perf-mode * {
    PHYSICS TUTORIAL VIEW (Slide Snapping Design)
 ═══════════════════════════════════════════════════════════════════ */
 .tutorial-slide-container {
-    height: calc(100vh - 56px);
+    height: 100%;
     overflow-y: auto;
     scroll-snap-type: y mandatory;
     scroll-behavior: smooth;
 }
 
 .tutorial-slide-section {
-    height: calc(100vh - 56px);
+    height: 100%;
     min-height: 480px;
     scroll-snap-align: start;
     scroll-snap-stop: always;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    justify-content: center;
     padding: 40px 24px;
     position: relative;
     border-bottom: 1px solid var(--border);
@@ -978,7 +979,28 @@ body.perf-mode * {
 .tutorial-section-inner-block {
     width: 100%;
     max-width: 1100px;
-    margin: 0 auto;
+    margin: auto auto;
+}
+
+@media (max-height: 780px) {
+    .tutorial-slide-section {
+        padding: 20px 24px;
+    }
+    .educational-simplified-note {
+        padding: 10px 16px;
+        margin-bottom: 12px;
+        font-size: 12.5px;
+    }
+    .tutorial-section-title {
+        margin-bottom: 8px;
+    }
+    .tutorial-section-subtitle {
+        margin-bottom: 12px;
+    }
+    .formula-sheet-box {
+        padding: 12px 18px;
+        margin-bottom: 10px;
+    }
 }
 
 .tutorial-section-divider {
