@@ -1,0 +1,1351 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Twin · Freio Eletromagnético · Mesa de Raio-X</title>
+    <meta name="description" content="Gêmeo digital do freio eletromagnético de uma mesa de diagnóstico por imagem. Motor físico em tempo real: circuito RL + Lei de Maxwell + cinemática a 60Hz.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg-deep:    #050c1a;
+            --bg-panel:   #0d1b2e;
+            --bg-surface: #0f2040;
+            --border:     rgba(56, 139, 253, 0.15);
+            --border-hi:  rgba(34, 211, 238, 0.45);
+            --cyan:       #22d3ee;
+            --cyan-dim:   rgba(34, 211, 238, 0.15);
+            --yellow:     #fbbf24;
+            --rose:       #fb7185;
+            --green:      #34d399;
+            --purple:     #a78bfa;
+            --orange:     #fb923c;
+            --text-hi:    #f0f6fc;
+            --text-mid:   #8b949e;
+            --text-dim:   #4d5f73;
+            --glow-cyan:  0 0 20px rgba(34,211,238,0.35);
+            --glow-rose:  0 0 20px rgba(251,113,133,0.35);
+        }
+
+        html, body { width:100%; height:100%; overflow:hidden; background:var(--bg-deep); color:var(--text-hi); font-family:'Inter',sans-serif; }
+        .mono { font-family:'JetBrains Mono',monospace; }
+
+        /* ── LAYOUT */
+        #app { display:grid; grid-template-rows:56px 1fr; height:100vh; }
+
+        header { background:rgba(13,27,46,0.95); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding:0 24px; backdrop-filter:blur(12px); z-index:50; }
+
+        #workspace { display:grid; grid-template-columns:1fr 420px; overflow:hidden; }
+
+        /* ── LEFT PANE: two rows */
+        #simPane { display:flex; flex-direction:column; align-items:stretch; overflow:hidden; position:relative; }
+
+        /* ── MACRO VIEW (top) */
+        #macroPane {
+            height: 215px;
+            flex-shrink: 0;
+            position: relative;
+            border-bottom: 1px solid var(--border);
+            overflow: hidden;
+            background: #050c1a;
+        }
+        #macroCanvas { display:block; width:100%; height:100%; }
+
+        /* ── DETAIL VIEW (bottom) */
+        #detailPane {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background: radial-gradient(ellipse at center, #071428 0%, var(--bg-deep) 75%);
+        }
+
+        .grid-bg { position:absolute; inset:0; background-image:linear-gradient(rgba(34,211,238,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(34,211,238,0.03) 1px,transparent 1px); background-size:32px 32px; }
+
+        /* ── Pane label */
+        .pane-tag { position:absolute; top:7px; left:12px; display:flex; align-items:center; gap:6px; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.12em; color:var(--text-dim); z-index:20; pointer-events:none; }
+        .ptdot { width:5px; height:5px; border-radius:50%; }
+
+        /* ── DASHBOARD */
+        #dashboard { background:var(--bg-panel); border-left:1px solid var(--border); display:flex; flex-direction:column; overflow-y:auto; padding:16px; gap:12px; scrollbar-width:thin; scrollbar-color:var(--bg-surface) transparent; }
+        #dashboard::-webkit-scrollbar { width:4px; }
+        #dashboard::-webkit-scrollbar-thumb { background:var(--bg-surface); border-radius:2px; }
+
+        /* ── GLASS PANELS */
+        .panel { background:rgba(15,32,64,0.6); border:1px solid var(--border); border-radius:12px; backdrop-filter:blur(8px); }
+        .panel-header { display:flex; align-items:center; gap:8px; padding:12px 16px; border-bottom:1px solid var(--border); }
+        .panel-header .label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-mid); }
+        .panel-body { padding:14px 16px; }
+        .icon-badge { width:28px; height:28px; border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:13px; }
+
+        /* ── VOLTAGE SLIDER */
+        #voltageSlider { -webkit-appearance:none; width:100%; height:6px; background:linear-gradient(90deg,var(--cyan) var(--pct,0%),rgba(255,255,255,0.08) var(--pct,0%)); border-radius:999px; cursor:pointer; outline:none; }
+        #voltageSlider::-webkit-slider-thumb { -webkit-appearance:none; width:20px; height:20px; border-radius:50%; background:#fff; border:3px solid var(--cyan); box-shadow:var(--glow-cyan); cursor:pointer; }
+        #voltageSlider::-moz-range-thumb { width:20px; height:20px; border-radius:50%; background:#fff; border:3px solid var(--cyan); cursor:pointer; }
+
+        /* ── PARAM SLIDERS */
+        .param-slider { -webkit-appearance:none; width:100%; height:4px; background:rgba(255,255,255,0.08); border-radius:999px; cursor:pointer; outline:none; }
+        .param-slider::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:var(--purple); cursor:pointer; }
+
+        /* ── TELEMETRY */
+        .tcard { background:rgba(15,32,64,0.5); border:1px solid var(--border); border-radius:10px; padding:12px 14px; }
+        .tcard-label { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-mid); margin-bottom:4px; }
+        .tcard-value { font-family:'JetBrains Mono',monospace; font-size:22px; font-weight:700; color:var(--text-hi); line-height:1; }
+        .tcard-value .unit { font-size:12px; color:var(--text-mid); margin-left:3px; font-weight:400; }
+        .tcard-sub { font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim); margin-top:6px; }
+        .pbar-track { height:4px; background:rgba(255,255,255,0.06); border-radius:999px; overflow:hidden; margin-top:8px; }
+        .pbar-fill { height:100%; border-radius:999px; transition:width 0.06s linear; }
+
+        /* ── STATUS BADGE */
+        .status-badge { display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border-radius:999px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; transition:all 0.3s ease; }
+        .status-badge .dot { width:6px; height:6px; border-radius:50%; }
+        .status-free   { background:rgba(52,211,153,0.15); color:var(--green); border:1px solid rgba(52,211,153,0.3); }
+        .status-free .dot { background:var(--green); box-shadow:0 0 6px var(--green); animation:pulse 1.2s ease-in-out infinite; }
+        .status-braking { background:rgba(251,191,36,0.15); color:var(--yellow); border:1px solid rgba(251,191,36,0.3); }
+        .status-braking .dot { background:var(--yellow); box-shadow:0 0 6px var(--yellow); animation:pulse 0.5s ease-in-out infinite; }
+        .status-locked { background:rgba(251,113,133,0.15); color:var(--rose); border:1px solid rgba(251,113,133,0.3); }
+        .status-locked .dot { background:var(--rose); box-shadow:var(--glow-rose); }
+        @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
+
+        /* ── FMEA */
+        .fmea-alert { display:flex; align-items:flex-start; gap:10px; padding:10px 12px; border-radius:8px; font-size:11px; line-height:1.5; border:1px solid; animation:fmea-in 0.3s ease; }
+        @keyframes fmea-in { from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none} }
+        .fmea-warn  { background:rgba(251,191,36,0.08); border-color:rgba(251,191,36,0.3); color:#fde68a; }
+        .fmea-error { background:rgba(251,113,133,0.08); border-color:rgba(251,113,133,0.3); color:#fecdd3; }
+        .fmea-icon  { font-size:14px; margin-top:1px; flex-shrink:0; }
+
+        /* ── HUD — estilo igual ao arquivo de referência */
+        #hudPanel {
+            position: fixed;
+            width: 300px;
+            background: rgba(9, 18, 38, 0.95);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(34, 211, 238, 0.45);
+            border-radius: 14px;
+            padding: 18px 20px;
+            box-shadow: 0 24px 64px rgba(0,0,0,0.55), 0 0 0 1px rgba(34,211,238,0.08), 0 0 28px rgba(34,211,238,0.12);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease, transform 0.25s ease;
+            transform: translateY(6px);
+            z-index: 999;
+        }
+        #hudPanel.visible {
+            opacity: 1;
+            pointer-events: all;
+            transform: translateY(0);
+        }
+        .hud-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        .hud-crosshair {
+            width: 28px; height: 28px;
+            background: rgba(34,211,238,0.12);
+            border: 1px solid rgba(34,211,238,0.4);
+            border-radius: 7px;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .hud-header-title {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.13em;
+            color: var(--cyan);
+            line-height: 1.2;
+        }
+        .hud-header-sub {
+            font-size: 9px;
+            color: var(--text-dim);
+            margin-top: 2px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        .hud-field { margin-bottom: 11px; }
+        .hud-field:last-child { margin-bottom: 0; }
+        .hud-field-label {
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--text-dim);
+            margin-bottom: 4px;
+        }
+        .hud-field-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--cyan);
+            line-height: 1.5;
+        }
+        .hud-field-desc {
+            font-size: 11px;
+            color: var(--text-mid);
+            line-height: 1.65;
+        }
+        .hud-close {
+            margin-top: 14px;
+            width: 100%;
+            padding: 7px;
+            background: rgba(34,211,238,0.08);
+            border: 1px solid rgba(34,211,238,0.3);
+            border-radius: 7px;
+            color: var(--cyan);
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .hud-close:hover { background: rgba(34,211,238,0.16); }
+
+        /* ── SVG clickable: outline dashed cyan on hover, glow when active */
+        #assembly { cursor: default; user-select: none; }
+        .comp-clickable {
+            cursor: pointer;
+            transition: filter 0.18s;
+        }
+        .comp-clickable:hover { filter: brightness(1.35); }
+        .comp-selected {
+            filter: brightness(1.45) drop-shadow(0 0 8px rgba(34,211,238,0.75));
+        }
+        /* Canvas-area clickables (macro view) */
+        .macro-clickable { cursor: pointer; }
+
+
+        /* ── CHART */
+        #liveChart { width:100%; display:block; }
+
+        /* ── HEADER STATS */
+        .header-stat { display:flex; flex-direction:column; align-items:flex-end; }
+        .header-stat .h-label { font-size:10px; color:var(--text-dim); font-weight:500; }
+        .header-stat .h-val { font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--text-hi); }
+
+        /* ── LEGEND / PARAMS */
+        .legend-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+        .param-row { display:flex; flex-direction:column; gap:6px; margin-bottom:14px; }
+        .param-top { display:flex; justify-content:space-between; align-items:baseline; }
+        .param-name { font-size:11px; font-weight:600; color:var(--text-mid); }
+        .param-val  { font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--purple); font-weight:600; }
+
+        /* ── DISC CANVAS overlay */
+        #discCanvas { position:absolute; pointer-events:none; }
+    </style>
+</head>
+<body>
+<div id="app">
+
+<!-- ══ HEADER ══════════════════════════════════════════════════════════════ -->
+<header>
+    <div style="display:flex;align-items:center;gap:14px;">
+        <div style="width:36px;height:36px;background:rgba(34,211,238,0.12);border:1px solid rgba(34,211,238,0.3);border-radius:9px;display:flex;align-items:center;justify-content:center;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
+            </svg>
+        </div>
+        <div>
+            <h1 style="font-size:14px;font-weight:700;color:var(--text-hi);letter-spacing:-0.01em;">
+                Digital Twin &mdash; <span style="color:var(--cyan);">Freio Eletromagnético · Mesa de Raio-X</span>
+            </h1>
+            <p style="font-size:10px;color:var(--text-dim);font-weight:500;margin-top:1px;">Circuito RL + Lei de Maxwell + Cinemática · Motor Físico 60Hz</p>
+        </div>
+    </div>
+    <div style="display:flex;gap:24px;align-items:center;">
+        <div class="header-stat"><span class="h-label">Resistência</span><span class="h-val mono" id="hdr-R">38.0 Ω</span></div>
+        <div class="header-stat"><span class="h-label">Tensão Nominal</span><span class="h-val mono">24.0 VCC</span></div>
+        <div class="header-stat"><span class="h-label">I<sub>nom</sub> = V/R</span><span class="h-val mono" id="hdr-I">0.632 A</span></div>
+        <div class="header-stat"><span class="h-label">Simulação</span><span class="h-val mono" style="color:var(--green);">⬤ LIVE</span></div>
+    </div>
+</header>
+
+<!-- ══ WORKSPACE ═══════════════════════════════════════════════════════════ -->
+<div id="workspace">
+
+    <!-- ── LEFT PANE ─────────────────────────────────────────────────────── -->
+    <div id="simPane">
+
+        <!-- ┌─ MACRO VIEW: X-ray machine table ─────────────────────────── -->
+        <div id="macroPane">
+            <div class="pane-tag">
+                <div class="ptdot" style="background:var(--cyan);"></div>
+                Contexto Industrial · Mesa de Diagnóstico em Operação
+            </div>
+            <canvas id="macroCanvas"></canvas>
+        </div>
+
+        <!-- └─ DETAIL VIEW: brake mechanism ───────────────────────────── -->
+        <div id="detailPane">
+            <div class="pane-tag">
+                <div class="ptdot" style="background:var(--purple);"></div>
+                Motor Físico · Freio Eletromagnético · Detalhe
+            </div>
+            <div class="grid-bg"></div>
+
+            <!-- HUD Overlay — popup flutuante estilo arquivo de referência -->
+            <div id="hudPanel">
+                <div class="hud-header">
+                    <div class="hud-crosshair">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2.5" stroke-linecap="round">
+                            <circle cx="12" cy="12" r="3"/>
+                            <line x1="12" y1="2" x2="12" y2="7"/>
+                            <line x1="12" y1="17" x2="12" y2="22"/>
+                            <line x1="2" y1="12" x2="7" y2="12"/>
+                            <line x1="17" y1="12" x2="22" y2="12"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="hud-header-title" id="hudTitle">Selecione um Componente</div>
+                        <div class="hud-header-sub">Inspeção de Componente</div>
+                    </div>
+                </div>
+                <div class="hud-field">
+                    <div class="hud-field-label">Material Predominante</div>
+                    <div class="hud-field-value" id="hudMaterial">—</div>
+                </div>
+                <div class="hud-field">
+                    <div class="hud-field-label">Parâmetro Físico</div>
+                    <div class="hud-field-value" id="hudParam">—</div>
+                </div>
+                <div class="hud-field">
+                    <div class="hud-field-label">Função Estrutural / Física</div>
+                    <div class="hud-field-desc" id="hudDesc">—</div>
+                </div>
+                <button class="hud-close" onclick="closeHud()">✕ Fechar Inspeção</button>
+            </div>
+
+            <!-- SVG Assembly (brake detail) -->
+            <svg id="assembly" width="480" height="500" viewBox="0 0 480 500" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="gShaft" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stop-color="#1e3a5f"/><stop offset="40%" stop-color="#7cb3d4"/><stop offset="60%" stop-color="#b0d4e8"/><stop offset="100%" stop-color="#1e3a5f"/>
+                    </linearGradient>
+                    <linearGradient id="gStator" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#1e3a5f"/><stop offset="100%" stop-color="#0d1f3c"/>
+                    </linearGradient>
+                    <linearGradient id="gCoil" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#b45309"/><stop offset="50%" stop-color="#d97706"/><stop offset="100%" stop-color="#78350f"/>
+                    </linearGradient>
+                    <linearGradient id="gPad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#94a3b8"/><stop offset="100%" stop-color="#64748b"/>
+                    </linearGradient>
+                    <filter id="fGlow" x="-30%" y="-30%" width="160%" height="160%">
+                        <feGaussianBlur stdDeviation="4" result="blur"/><feComposite in="SourceGraphic" in2="blur" operator="over"/>
+                    </filter>
+                    <clipPath id="clipDisc">
+                        <rect x="110" y="255" width="260" height="50" rx="6"/>
+                    </clipPath>
+                </defs>
+
+                <!-- Mounting bolts -->
+                <circle cx="110" cy="80" r="6" fill="#0d1f3c" stroke="#1e3a5f" stroke-width="1.5"/>
+                <circle cx="370" cy="80" r="6" fill="#0d1f3c" stroke="#1e3a5f" stroke-width="1.5"/>
+                <circle cx="110" cy="80" r="2" fill="#334155"/>
+                <circle cx="370" cy="80" r="2" fill="#334155"/>
+
+                <!-- Top mounting bracket -->
+                <rect x="80" y="52" width="320" height="14" rx="4" fill="url(#gStator)" stroke="#1e3a5f" stroke-width="1"/>
+                <rect x="80" y="52" width="320" height="3" rx="2" fill="rgba(255,255,255,0.07)"/>
+
+                <!-- Stator / Electromagnet -->
+                <g id="svgCore" class="comp-clickable" onclick="inspect('core')">
+                    <rect x="130" y="66" width="220" height="120" rx="10" fill="url(#gStator)" stroke="rgba(56,139,253,0.3)" stroke-width="1.5"/>
+                    <rect x="130" y="136" width="40" height="50" rx="0" fill="#0a1829" stroke="rgba(56,139,253,0.2)" stroke-width="1"/>
+                    <rect x="310" y="136" width="40" height="50" rx="0" fill="#0a1829" stroke="rgba(56,139,253,0.2)" stroke-width="1"/>
+                    <rect x="170" y="170" width="140" height="14" rx="2" fill="#0d1b2e" stroke="rgba(56,139,253,0.15)" stroke-width="1"/>
+                    <rect x="130" y="66" width="220" height="4" rx="3" fill="rgba(255,255,255,0.05)"/>
+                    <text x="240" y="117" text-anchor="middle" fill="#4d5f73" font-family="JetBrains Mono,monospace" font-size="9" font-weight="700" letter-spacing="2">ESTATOR · AÇO SAE</text>
+                    <circle cx="155" cy="156" r="4" fill="#0a1829" stroke="#1e3a5f" stroke-width="1"/>
+                    <circle cx="155" cy="156" r="1.5" fill="#334155"/>
+                    <circle cx="325" cy="156" r="4" fill="#0a1829" stroke="#1e3a5f" stroke-width="1"/>
+                    <circle cx="325" cy="156" r="1.5" fill="#334155"/>
+                </g>
+
+                <!-- Coil windings -->
+                <g id="svgCoil" class="comp-clickable" onclick="inspect('coil')">
+                    <rect x="175" y="76" width="130" height="90" rx="6" fill="url(#gCoil)" stroke="#78350f" stroke-width="1.5"/>
+                    <line x1="175" y1="84"  x2="305" y2="84"  stroke="rgba(0,0,0,0.3)" stroke-width="1.5"/>
+                    <line x1="175" y1="91"  x2="305" y2="91"  stroke="rgba(0,0,0,0.3)" stroke-width="1.5"/>
+                    <line x1="175" y1="98"  x2="305" y2="98"  stroke="rgba(0,0,0,0.3)" stroke-width="1.5"/>
+                    <line x1="175" y1="105" x2="305" y2="105" stroke="rgba(0,0,0,0.3)" stroke-width="1.5"/>
+                    <line x1="175" y1="112" x2="305" y2="112" stroke="rgba(0,0,0,0.3)" stroke-width="1.5"/>
+                    <line x1="175" y1="119" x2="305" y2="119" stroke="rgba(0,0,0,0.3)" stroke-width="1.5"/>
+                    <line x1="175" y1="126" x2="305" y2="126" stroke="rgba(0,0,0,0.3)" stroke-width="1.5"/>
+                    <line x1="175" y1="133" x2="305" y2="133" stroke="rgba(0,0,0,0.3)" stroke-width="1.5"/>
+                    <line x1="175" y1="140" x2="305" y2="140" stroke="rgba(0,0,0,0.3)" stroke-width="1.5"/>
+                    <line x1="175" y1="147" x2="305" y2="147" stroke="rgba(0,0,0,0.3)" stroke-width="1.5"/>
+                    <line x1="175" y1="154" x2="305" y2="154" stroke="rgba(0,0,0,0.3)" stroke-width="1.5"/>
+                    <rect id="coilGlow" x="175" y="76" width="130" height="90" rx="6" fill="transparent" opacity="0"/>
+                    <text x="240" y="85" text-anchor="middle" fill="rgba(0,0,0,0.5)" font-family="JetBrains Mono" font-size="7" letter-spacing="1.5">BOBINA Cu · AWG 24</text>
+                    <line x1="200" y1="76" x2="200" y2="62" stroke="#d97706" stroke-width="2" stroke-dasharray="3,2"/>
+                    <line x1="280" y1="76" x2="280" y2="62" stroke="#b45309" stroke-width="2" stroke-dasharray="3,2"/>
+                    <circle cx="200" cy="60" r="4" fill="#d97706"/>
+                    <circle cx="280" cy="60" r="4" fill="#b45309"/>
+                    <text x="196" y="50" fill="#d97706" font-family="JetBrains Mono" font-size="9" font-weight="700">+</text>
+                    <text x="276" y="50" fill="#b45309" font-family="JetBrains Mono" font-size="9" font-weight="700">−</text>
+                </g>
+
+                <!-- Magnetic field lines -->
+                <g id="fieldLines" opacity="0">
+                    <ellipse id="fArc1L" cx="155" cy="192" rx="35" ry="52" fill="none" stroke="#22d3ee" stroke-width="1.5" stroke-dasharray="4,4" opacity="0.7"/>
+                    <ellipse id="fArc2L" cx="155" cy="192" rx="55" ry="76" fill="none" stroke="#22d3ee" stroke-width="1"   stroke-dasharray="6,6" opacity="0.4"/>
+                    <ellipse id="fArc1R" cx="325" cy="192" rx="35" ry="52" fill="none" stroke="#22d3ee" stroke-width="1.5" stroke-dasharray="4,4" opacity="0.7"/>
+                    <ellipse id="fArc2R" cx="325" cy="192" rx="55" ry="76" fill="none" stroke="#22d3ee" stroke-width="1"   stroke-dasharray="6,6" opacity="0.4"/>
+                    <path d="M 155 137 Q 155 102 240 97 Q 325 92 325 137" fill="none" stroke="#22d3ee" stroke-width="1.5" stroke-dasharray="5,4" opacity="0.5"/>
+                </g>
+
+                <!-- Brake Pad / Armature -->
+                <g id="svgPad" class="comp-clickable" onclick="inspect('pad')">
+                    <rect id="padRect"      x="130" y="184" width="220" height="22" rx="4" fill="url(#gPad)" stroke="rgba(148,163,184,0.3)" stroke-width="1"/>
+                    <rect id="padLining"    x="130" y="198" width="220" height="8"  rx="0" fill="#374151"/>
+                    <rect id="padHighlight" x="130" y="184" width="220" height="4"  rx="3" fill="rgba(255,255,255,0.08)"/>
+                    <rect x="145" y="184" width="8" height="22" rx="2" fill="#475569" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>
+                    <rect x="327" y="184" width="8" height="22" rx="2" fill="#475569" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>
+                    <rect id="contactGlow" x="130" y="202" width="220" height="2" rx="1" fill="#fb7185" opacity="0"/>
+                </g>
+
+                <!-- Gap annotation -->
+                <g id="gapAnnotation" opacity="0.5">
+                    <line x1="360" y1="206" x2="360" y2="257" stroke="#a78bfa" stroke-width="1" stroke-dasharray="3,2"/>
+                    <text id="gapLabel" x="365" y="234" fill="#a78bfa" font-family="JetBrains Mono" font-size="9" font-weight="600">g=0.5mm</text>
+                    <line x1="357" y1="206" x2="363" y2="206" stroke="#a78bfa" stroke-width="1"/>
+                    <line x1="357" y1="257" x2="363" y2="257" stroke="#a78bfa" stroke-width="1"/>
+                </g>
+
+                <!-- Shaft -->
+                <g id="svgShaft" class="comp-clickable" onclick="inspect('shaft')">
+                    <rect x="231" y="206" width="18" height="260" rx="4" fill="url(#gShaft)" stroke="rgba(100,180,220,0.2)" stroke-width="1"/>
+                    <rect x="231" y="206" width="4"  height="260" rx="2" fill="rgba(255,255,255,0.06)"/>
+                </g>
+
+                <!-- Disc Rotor -->
+                <g id="svgDisc" class="comp-clickable" onclick="inspect('disc')">
+                    <rect x="108" y="270" width="264" height="14" rx="4" fill="rgba(0,0,0,0.55)" filter="url(#fGlow)"/>
+                    <rect x="110" y="255" width="260" height="50" rx="6" fill="#050b18"/>
+                    <rect x="110" y="255" width="260" height="50" rx="6" fill="none" stroke="rgba(100,160,220,0.5)" stroke-width="1.5"/>
+                    <rect x="110" y="255" width="260" height="6"  rx="3" fill="rgba(255,255,255,0.09)"/>
+                    <rect x="110" y="299" width="260" height="6"  rx="0" fill="rgba(0,0,0,0.35)"/>
+                    <rect id="discHeat" x="110" y="255" width="260" height="50" rx="6" fill="rgba(251,113,133,0)"/>
+                    <circle cx="240" cy="280" r="15" fill="#0a1522" stroke="rgba(100,180,220,0.55)" stroke-width="2"/>
+                    <circle cx="240" cy="280" r="6"  fill="#1e3a5f" stroke="rgba(100,180,220,0.3)" stroke-width="1"/>
+                    <circle cx="240" cy="280" r="2.5" fill="#4a90c4"/>
+                </g>
+
+                <!-- Bearings -->
+                <g opacity="0.7">
+                    <rect x="227" y="253" width="26" height="6" rx="3" fill="#1a2f4a" stroke="rgba(100,180,220,0.3)" stroke-width="1"/>
+                    <rect x="227" y="305" width="26" height="6" rx="3" fill="#1a2f4a" stroke="rgba(100,180,220,0.3)" stroke-width="1"/>
+                </g>
+
+                <!-- Callout labels -->
+                <g font-family="JetBrains Mono,monospace" font-size="9.5" fill="rgba(77,95,115,0.8)">
+                    <line x1="350" y1="126" x2="410" y2="102" stroke="rgba(77,95,115,0.4)" stroke-width="1"/>
+                    <text x="413" y="106">Estator</text>
+                    <line x1="175" y1="121" x2="115" y2="137" stroke="rgba(77,95,115,0.4)" stroke-width="1"/>
+                    <text x="20" y="141">Bobina</text>
+                    <line x1="350" y1="195" x2="410" y2="191" stroke="rgba(77,95,115,0.4)" stroke-width="1"/>
+                    <text x="413" y="195">Armadura</text>
+                    <line x1="110" y1="280" x2="65" y2="280" stroke="rgba(77,95,115,0.4)" stroke-width="1"/>
+                    <text x="5" y="284">Disco</text>
+                </g>
+
+                <!-- Rotation indicator -->
+                <g id="rotIndicator" opacity="0.5">
+                    <path d="M 395 280 A 30 30 0 0 1 425 310" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round"/>
+                    <polygon points="425,310 420,298 432,304" fill="#34d399"/>
+                    <text x="390" y="348" font-family="JetBrains Mono" font-size="9" fill="#34d399" text-anchor="middle" id="rotLabel">RPM</text>
+                </g>
+
+                <!-- Eddy current indicator -->
+                <g id="eddyIndicator" opacity="0">
+                    <ellipse cx="240" cy="280" rx="120" ry="18" fill="none" stroke="#fb7185" stroke-width="1" stroke-dasharray="4,3"/>
+                    <ellipse cx="240" cy="280" rx="90"  ry="13" fill="none" stroke="#fbbf24" stroke-width="0.8" stroke-dasharray="3,4" opacity="0.6"/>
+                </g>
+            </svg>
+
+            <!-- Disc rotation canvas overlay -->
+            <canvas id="discCanvas"></canvas>
+
+            <!-- Equation overlay -->
+            <div style="position:absolute;bottom:16px;left:16px;font-family:'JetBrains Mono',monospace;font-size:10px;color:rgba(77,95,115,0.7);line-height:1.9;pointer-events:none;">
+                <div style="color:rgba(34,211,238,0.5);">dI/dt = (V &minus; R&middot;I) / L</div>
+                <div>F<sub>mag</sub> &prop; (N&middot;I)&sup2; / g&sup2;</div>
+                <div>&tau;<sub>brake</sub> = k&middot;F<sub>mag</sub>&middot;r<sub>pad</sub></div>
+            </div>
+        </div>
+    </div><!-- /#simPane -->
+
+    <!-- ── RIGHT: DASHBOARD ──────────────────────────────────────────────── -->
+    <div id="dashboard">
+
+        <!-- Voltage Control -->
+        <div class="panel">
+            <div class="panel-header">
+                <div class="icon-badge" style="background:rgba(34,211,238,0.12);border:1px solid rgba(34,211,238,0.2);">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2.5" stroke-linecap="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                </div>
+                <span class="label">Controle de Tensão</span>
+                <span style="margin-left:auto;font-family:'JetBrains Mono';font-size:22px;font-weight:700;color:var(--cyan);" id="valVoltage">0.0<span style="font-size:13px;color:var(--text-mid);font-weight:400;"> V</span></span>
+            </div>
+            <div class="panel-body">
+                <input type="range" id="voltageSlider" min="0" max="24" step="0.1" value="0" style="--pct:0%;">
+                <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:10px;color:var(--text-dim);font-family:'JetBrains Mono';">
+                    <span>0V · Mesa Livre</span><span>24V · Travamento Máx</span>
+                </div>
+                <div style="margin-top:14px;display:flex;justify-content:center;">
+                    <span class="status-badge status-free" id="statusBadge">
+                        <span class="dot"></span><span id="statusText">Mesa em Movimento</span>
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- FMEA Panel -->
+        <div class="panel" id="fmeaContainer" style="display:none;">
+            <div class="panel-header">
+                <div class="icon-badge" style="background:rgba(251,191,36,0.12);border:1px solid rgba(251,191,36,0.2);">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                </div>
+                <span class="label" style="color:#fbbf24;">FMEA · Diagnóstico de Falha</span>
+            </div>
+            <div class="panel-body" style="padding-top:10px;"><div id="fmeaPanel"></div></div>
+        </div>
+
+        <!-- Telemetry Cards -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div class="tcard" style="border-left:3px solid var(--yellow);">
+                <div class="tcard-label">Corrente Induzida (I)</div>
+                <div class="tcard-value"><span id="valCurrent">0.00</span><span class="unit">A</span></div>
+                <div class="pbar-track"><div class="pbar-fill" id="barCurrent" style="background:var(--yellow);width:0%"></div></div>
+                <div class="tcard-sub" id="subCurrentMax">Lim: 0.63 A (V/R)</div>
+            </div>
+            <div class="tcard" style="border-left:3px solid var(--purple);">
+                <div class="tcard-label">F. Magnética (Maxwell)</div>
+                <div class="tcard-value"><span id="valForce">0</span><span class="unit">%</span></div>
+                <div class="pbar-track"><div class="pbar-fill" id="barForce" style="background:var(--purple);width:0%"></div></div>
+                <div class="tcard-sub">&prop; (N&middot;I)&sup2; / g&sup2;</div>
+            </div>
+            <div class="tcard" style="border-left:3px solid var(--rose);grid-column:1/-1;">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+                    <div>
+                        <div class="tcard-label">Velocidade da Mesa (Cinemática)</div>
+                        <div class="tcard-value"><span id="valRPM">1500</span><span class="unit">RPM</span></div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div class="tcard-label">F. Magnetomotriz</div>
+                        <div class="tcard-value" style="font-size:16px;"><span id="valMMF">0</span><span class="unit">A&middot;e</span></div>
+                    </div>
+                </div>
+                <div class="pbar-track"><div class="pbar-fill" id="barRPM" style="background:var(--rose);width:100%"></div></div>
+            </div>
+        </div>
+
+        <!-- Physics Lab -->
+        <div class="panel">
+            <div class="panel-header">
+                <div class="icon-badge" style="background:rgba(167,139,250,0.12);border:1px solid rgba(167,139,250,0.2);">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5" stroke-linecap="round"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/></svg>
+                </div>
+                <span class="label">Laboratório de Parâmetros</span>
+                <button onclick="resetPhysics()" style="margin-left:auto;padding:4px 10px;background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.25);border-radius:6px;color:#a78bfa;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;cursor:pointer;">Reset</button>
+            </div>
+            <div class="panel-body">
+                <div class="param-row">
+                    <div class="param-top"><span class="param-name">Resistência (R) <span style="color:var(--text-dim);font-size:9px;">· aquecimento ⇒ Efeito Joule</span></span><span class="param-val" id="dispR">38.0 Ω</span></div>
+                    <input type="range" class="param-slider" id="sliderR" min="10" max="100" step="0.5" value="38">
+                </div>
+                <div class="param-row">
+                    <div class="param-top"><span class="param-name">Indutância (L) <span style="color:var(--text-dim);font-size:9px;">· atraso de corrente</span></span><span class="param-val" id="dispL">0.80 H</span></div>
+                    <input type="range" class="param-slider" id="sliderL" min="0.05" max="3" step="0.05" value="0.8">
+                </div>
+                <div class="param-row">
+                    <div class="param-top"><span class="param-name">Espiras (N) <span style="color:var(--text-dim);font-size:9px;">· custo de material</span></span><span class="param-val" id="dispN">500 esp</span></div>
+                    <input type="range" class="param-slider" id="sliderN" min="50" max="1000" step="10" value="500">
+                </div>
+                <div class="param-row" style="margin-bottom:0;">
+                    <div class="param-top"><span class="param-name">Entreferro (g) <span style="color:var(--text-dim);font-size:9px;">· desgaste mecânico</span></span><span class="param-val" id="dispG">0.50 mm</span></div>
+                    <input type="range" class="param-slider" id="sliderG" min="0.1" max="5" step="0.05" value="0.5">
+                </div>
+            </div>
+        </div>
+
+        <!-- Live Chart -->
+        <div class="panel" style="flex-shrink:0;">
+            <div class="panel-header">
+                <div class="icon-badge" style="background:rgba(34,211,238,0.08);border:1px solid rgba(34,211,238,0.15);">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2.5" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                </div>
+                <span class="label">Telemetria · 100 Amostras</span>
+            </div>
+            <div class="panel-body" style="padding-bottom:12px;">
+                <canvas id="liveChart" height="120"></canvas>
+                <div style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap;">
+                    <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--text-mid);"><div class="legend-dot" style="background:var(--cyan);"></div>Tensão (V)</div>
+                    <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--text-mid);"><div class="legend-dot" style="background:var(--yellow);"></div>Corrente ×10</div>
+                    <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--text-mid);"><div class="legend-dot" style="background:var(--rose);"></div>RPM &divide;100</div>
+                    <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--text-mid);"><div class="legend-dot" style="background:var(--purple);"></div>Força (%)</div>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /#dashboard -->
+
+</div><!-- /#workspace -->
+</div><!-- /#app -->
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+//  PHYSICS ENGINE STATE
+// ═══════════════════════════════════════════════════════════════════════════
+const DEFAULTS = { R: 38.0, L: 0.8, N: 500, g: 0.5 };
+
+const sys = {
+    R: 38.0, L: 0.8, N: 500, g: 0.5,
+    targetV: 0, I: 0,
+    rpm: 1500, maxRpm: 1500, motorTorque: 5,
+    history: Array(100).fill(null).map(() => ({ v:0, i:0, r:1500, f:0 })),
+    lastTime: performance.now(),
+    discRotAngle: 0,
+    fieldDash: 0,
+    tablePhase: 0,          // oscillation phase for the X-ray table
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  DOM REFS
+// ═══════════════════════════════════════════════════════════════════════════
+const el = {
+    voltSlider:    document.getElementById('voltageSlider'),
+    valV:          document.getElementById('valVoltage'),
+    valI:          document.getElementById('valCurrent'),
+    valF:          document.getElementById('valForce'),
+    valRPM:        document.getElementById('valRPM'),
+    valMMF:        document.getElementById('valMMF'),
+    barI:          document.getElementById('barCurrent'),
+    barF:          document.getElementById('barForce'),
+    barRPM:        document.getElementById('barRPM'),
+    subCurrentMax: document.getElementById('subCurrentMax'),
+    statusBadge:   document.getElementById('statusBadge'),
+    statusText:    document.getElementById('statusText'),
+    fmeaContainer: document.getElementById('fmeaContainer'),
+    fmeaPanel:     document.getElementById('fmeaPanel'),
+    hdrR:          document.getElementById('hdr-R'),
+    hdrI:          document.getElementById('hdr-I'),
+
+    sliderR: document.getElementById('sliderR'),
+    sliderL: document.getElementById('sliderL'),
+    sliderN: document.getElementById('sliderN'),
+    sliderG: document.getElementById('sliderG'),
+    dispR:   document.getElementById('dispR'),
+    dispL:   document.getElementById('dispL'),
+    dispN:   document.getElementById('dispN'),
+    dispG:   document.getElementById('dispG'),
+
+    coilGlow:      document.getElementById('coilGlow'),
+    fieldLines:    document.getElementById('fieldLines'),
+    fArc1L:        document.getElementById('fArc1L'),
+    fArc2L:        document.getElementById('fArc2L'),
+    fArc1R:        document.getElementById('fArc1R'),
+    fArc2R:        document.getElementById('fArc2R'),
+    padRect:       document.getElementById('padRect'),
+    padLining:     document.getElementById('padLining'),
+    padHighlight:  document.getElementById('padHighlight'),
+    contactGlow:   document.getElementById('contactGlow'),
+    discHeat:      document.getElementById('discHeat'),
+    eddyIndicator: document.getElementById('eddyIndicator'),
+    rotLabel:      document.getElementById('rotLabel'),
+    rotIndicator:  document.getElementById('rotIndicator'),
+    gapAnnotation: document.getElementById('gapAnnotation'),
+    gapLabel:      document.getElementById('gapLabel'),
+    canvas:        document.getElementById('liveChart'),
+    hudPanel:      document.getElementById('hudPanel'),
+    hudTitle:      document.getElementById('hudTitle'),
+    hudMaterial:   document.getElementById('hudMaterial'),
+    hudParam:      document.getElementById('hudParam'),
+    hudDesc:       document.getElementById('hudDesc'),
+};
+const ctx = el.canvas.getContext('2d');
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  COMPONENT DATABASE (HUD)
+// ═══════════════════════════════════════════════════════════════════════════
+const componentDB = {
+    coil: {
+        title: 'Bobina Solenoide',
+        material: 'Fio de Cobre Esmaltado (Cu AWG 24)',
+        param: 'L = 0.8 H · N = 500 esp · R = 38 Ω',
+        desc: 'Converte energia elétrica em campo magnético. A indutância (L) impõe o atraso dI/dt = (V−RI)/L, visível no gráfico. A Força Magnetomotriz ℱ = N·I define o fluxo que trava a mesa.',
+    },
+    core: {
+        title: 'Carcaça do Estator',
+        material: 'Aço SAE Alta Permeabilidade (μᵣ ≈ 2000)',
+        param: 'μᵣ = 2000 · Relutância mínima',
+        desc: 'Fornece o caminho de baixa relutância para o fluxo magnético. Canaliza as linhas de campo da bobina diretamente sobre a armadura, maximizando a força de atração e garantindo a imobilidade da mesa de Raio-X durante a exposição.',
+    },
+    pad: {
+        title: 'Armadura / Sapata de Atrito',
+        material: 'Aço Carbono SAE + Lona de Fricção (μₖ ≈ 0.45)',
+        param: 'Curso: 0.5–5 mm · F = k(N·I)²/g²',
+        desc: 'Peça móvel atraída eletromagneticamente. A força segue a Lei do Quadrado Inverso: dobrar o entreferro (g) reduz a força a ¼. O revestimento de fricção converte a energia cinética em calor, parando a mesa.',
+    },
+    disc: {
+        title: 'Disco do Freio (Rotor)',
+        material: 'Liga Ferro-Cromo · Alta dissipação térmica',
+        param: 'ω = RPM·2π/60 rad/s · τ = I·α',
+        desc: 'Fixo ao mecanismo de translação da mesa de Raio-X. Gira livremente quando o freio está desenergizado. Ao ser pressionado pela armadura, o torque de frenagem τ = F·r·μ desacelera o sistema até a imobilidade absoluta.',
+    },
+    shaft: {
+        title: 'Eixo de Transmissão',
+        material: 'Aço Inoxidável 17-4PH (Alta Resistência)',
+        param: 'Acoplado ao mecanismo da mesa · J = Inércia',
+        desc: 'Transfere o movimento ao sistema de translação da mesa. O momento de inércia J determina a taxa de desaceleração α = τ/J. A imobilidade absoluta deste eixo é crítica durante a emissão de radiação ionizante.',
+    },
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  EVENT LISTENERS
+// ═══════════════════════════════════════════════════════════════════════════
+el.voltSlider.addEventListener('input', e => {
+    sys.targetV = parseFloat(e.target.value);
+    e.target.style.setProperty('--pct', (sys.targetV / 24 * 100) + '%');
+});
+el.sliderR.addEventListener('input', e => { sys.R = parseFloat(e.target.value); updateParamDisplays(); });
+el.sliderL.addEventListener('input', e => { sys.L = parseFloat(e.target.value); updateParamDisplays(); });
+el.sliderN.addEventListener('input', e => { sys.N = parseInt(e.target.value);   updateParamDisplays(); });
+el.sliderG.addEventListener('input', e => { sys.g = parseFloat(e.target.value); updateParamDisplays(); });
+
+function updateParamDisplays() {
+    el.dispR.textContent = sys.R.toFixed(1) + ' Ω';
+    el.dispL.textContent = sys.L.toFixed(2) + ' H';
+    el.dispN.textContent = sys.N + ' esp';
+    el.dispG.textContent = sys.g.toFixed(2) + ' mm';
+    el.hdrR.textContent  = sys.R.toFixed(1) + ' Ω';
+    const maxI = 24 / sys.R;
+    el.hdrI.textContent         = maxI.toFixed(3) + ' A';
+    el.subCurrentMax.textContent = 'Lim: ' + maxI.toFixed(3) + ' A (V/R)';
+    el.gapLabel.textContent = 'g=' + sys.g.toFixed(2) + 'mm';
+}
+
+function resetPhysics() {
+    sys.R = DEFAULTS.R; sys.L = DEFAULTS.L; sys.N = DEFAULTS.N; sys.g = DEFAULTS.g;
+    el.sliderR.value = sys.R; el.sliderL.value = sys.L;
+    el.sliderN.value = sys.N; el.sliderG.value = sys.g;
+    updateParamDisplays();
+}
+
+document.getElementById('detailPane').addEventListener('click', e => {
+    if (!e.target.closest('.comp-clickable') && !e.target.closest('#hudPanel')) closeHud();
+});
+
+function inspect(id) {
+    const d = componentDB[id]; if (!d) return;
+    el.hudTitle.textContent   = d.title;
+    el.hudMaterial.textContent = d.material;
+    el.hudParam.textContent   = d.param;
+    el.hudDesc.textContent    = d.desc;
+    el.hudPanel.classList.add('visible');
+    document.querySelectorAll('.comp-selected').forEach(c => c.classList.remove('comp-selected'));
+    const svgEl = document.getElementById('svg' + id.charAt(0).toUpperCase() + id.slice(1));
+    if (svgEl) svgEl.classList.add('comp-selected');
+}
+function closeHud() {
+    el.hudPanel.classList.remove('visible');
+    document.querySelectorAll('.comp-selected').forEach(c => c.classList.remove('comp-selected'));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  CANVAS RESIZE (chart)
+// ═══════════════════════════════════════════════════════════════════════════
+function resizeChart() {
+    const rect = el.canvas.getBoundingClientRect();
+    el.canvas.width  = rect.width  * (window.devicePixelRatio || 1);
+    el.canvas.height = rect.height * (window.devicePixelRatio || 1);
+}
+window.addEventListener('resize', () => { resizeChart(); resizeMacroCanvas(); positionDiscCanvas(); });
+resizeChart();
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  MACRO CANVAS — X-ray machine table view
+// ═══════════════════════════════════════════════════════════════════════════
+const macroCv = document.getElementById('macroCanvas');
+const mCtx    = macroCv.getContext('2d');
+let macroTableHistory = [];
+
+function resizeMacroCanvas() {
+    const dpr = window.devicePixelRatio || 1;
+    macroCv.width  = Math.round(macroCv.clientWidth  * dpr);
+    macroCv.height = Math.round(macroCv.clientHeight * dpr);
+}
+resizeMacroCanvas();
+
+function drawMacroView() {
+    const dpr = window.devicePixelRatio || 1;
+    const cw = macroCv.width  / dpr;
+    const ch = macroCv.height / dpr;
+
+    mCtx.save();
+    mCtx.scale(dpr, dpr);
+    mCtx.clearRect(0, 0, cw, ch);
+
+    // ─ Background
+    mCtx.fillStyle = '#050c1a';
+    mCtx.fillRect(0, 0, cw, ch);
+
+    // ─ Grid
+    mCtx.strokeStyle = 'rgba(34,211,238,0.025)';
+    mCtx.lineWidth = 1;
+    for (let gx = 0; gx < cw; gx += 30) { mCtx.beginPath(); mCtx.moveTo(gx,0); mCtx.lineTo(gx,ch); mCtx.stroke(); }
+    for (let gy = 0; gy < ch; gy += 30) { mCtx.beginPath(); mCtx.moveTo(0,gy); mCtx.lineTo(cw,gy); mCtx.stroke(); }
+
+    const speedFactor = sys.rpm / sys.maxRpm;
+    const isLocked    = sys.rpm < 5;
+    const isBraking   = !isLocked && sys.targetV > 0.5 && speedFactor < 0.97;
+
+    // ─ Table oscillation math
+    const amplitude = Math.min(cw * 0.24, 120);
+    const tableCX   = cw * 0.5;
+    const tableX    = tableCX + amplitude * Math.sin(sys.tablePhase);
+    const tableW    = 158;
+    const tableH    = 34;
+    const trackY    = Math.round(ch * 0.55);
+    const tableTop  = trackY - tableH - 2;
+
+    // ─ Machine gantry column (left, fixed)
+    const colX = 20, colW = 36;
+    const cg = mCtx.createLinearGradient(colX, 0, colX + colW, 0);
+    cg.addColorStop(0, '#091624'); cg.addColorStop(0.35, '#1e3a5f'); cg.addColorStop(1, '#0d1f3c');
+    mCtx.fillStyle = cg;
+    mCtx.beginPath(); mCtx.roundRect(colX, 14, colW, ch - 28, 4); mCtx.fill();
+    mCtx.fillStyle = 'rgba(255,255,255,0.04)';
+    mCtx.fillRect(colX + 2, 14, 5, ch - 28);
+    mCtx.strokeStyle = 'rgba(56,139,253,0.22)';
+    mCtx.lineWidth = 1;
+    mCtx.beginPath(); mCtx.roundRect(colX, 14, colW, ch - 28, 4); mCtx.stroke();
+    // Column label
+    mCtx.fillStyle = 'rgba(77,95,115,0.55)';
+    mCtx.font = '700 7px JetBrains Mono,monospace';
+    mCtx.textAlign = 'center';
+    mCtx.fillText('GANTRY', colX + colW / 2, ch - 10);
+
+    // ─ Horizontal arm (column → tube)
+    const tubeX = Math.round(cw * 0.42);
+    const armY  = Math.round(ch * 0.3);
+    mCtx.fillStyle = '#112038';
+    mCtx.beginPath(); mCtx.roundRect(colX + colW, armY - 6, tubeX - colX - colW, 12, 2); mCtx.fill();
+    mCtx.strokeStyle = 'rgba(56,139,253,0.18)';
+    mCtx.lineWidth = 1;
+    mCtx.beginPath(); mCtx.roundRect(colX + colW, armY - 6, tubeX - colX - colW, 12, 2); mCtx.stroke();
+
+    // ─ X-ray tube housing
+    const tbW = 70, tbH = 44;
+    const tbX = tubeX - tbW / 2, tbY = armY - tbH - 4;
+    mCtx.fillStyle = '#0f1e35';
+    mCtx.beginPath(); mCtx.roundRect(tbX, tbY, tbW, tbH, 5); mCtx.fill();
+    mCtx.strokeStyle = 'rgba(34,211,238,0.28)';
+    mCtx.lineWidth = 1.5;
+    mCtx.beginPath(); mCtx.roundRect(tbX, tbY, tbW, tbH, 5); mCtx.stroke();
+    // Status LED on tube
+    const tubeLit = sys.targetV > 0;
+    mCtx.fillStyle = tubeLit ? '#22d3ee' : '#1e3a5f';
+    mCtx.shadowColor = 'rgba(34,211,238,0.7)'; mCtx.shadowBlur = tubeLit ? 8 : 0;
+    mCtx.beginPath(); mCtx.arc(tbX + 10, tbY + 10, 4, 0, Math.PI * 2); mCtx.fill();
+    mCtx.shadowBlur = 0;
+    mCtx.fillStyle = 'rgba(34,211,238,0.7)';
+    mCtx.font = '700 8px JetBrains Mono,monospace'; mCtx.textAlign = 'center';
+    mCtx.fillText('EMISSOR', tubeX, tbY + 20);
+    mCtx.fillStyle = 'rgba(34,211,238,0.45)';
+    mCtx.font = '600 7px JetBrains Mono,monospace';
+    mCtx.fillText('X-RAY · 100kV', tubeX, tbY + 33);
+    // Collimator aperture
+    mCtx.fillStyle = '#050c1a';
+    mCtx.fillRect(tbX + 14, armY - 3, tbW - 28, 7);
+    mCtx.strokeStyle = 'rgba(34,211,238,0.35)'; mCtx.lineWidth = 1;
+    mCtx.strokeRect(tbX + 14, armY - 3, tbW - 28, 7);
+
+    // ─ Radiation cone (when voltage > 0)
+    if (sys.targetV > 0.3) {
+        const ca = (sys.targetV / 24) * 0.07;
+        const coneBaseY = tableTop - 2;
+        const spread = (coneBaseY - (armY + 4)) * 0.38;
+        mCtx.beginPath();
+        mCtx.moveTo(tubeX - 18, armY + 4);
+        mCtx.lineTo(tubeX + 18, armY + 4);
+        mCtx.lineTo(tubeX + spread, coneBaseY);
+        mCtx.lineTo(tubeX - spread, coneBaseY);
+        mCtx.closePath();
+        mCtx.fillStyle = `rgba(34,211,238,${ca})`;
+        mCtx.fill();
+        mCtx.setLineDash([4, 4]);
+        mCtx.strokeStyle = `rgba(34,211,238,${ca * 2.5})`; mCtx.lineWidth = 0.8;
+        mCtx.stroke(); mCtx.setLineDash([]);
+    }
+
+    // ─ Track / Linear rail system
+    const railLeft  = colX + colW + 4;
+    const railRight = cw - 14;
+    // Rail body
+    mCtx.fillStyle = '#172d4a';
+    mCtx.fillRect(railLeft, trackY - 6, railRight - railLeft, 6);
+    mCtx.fillStyle = 'rgba(100,160,220,0.28)';
+    mCtx.fillRect(railLeft, trackY - 6, railRight - railLeft, 1.5);
+    mCtx.fillStyle = '#172d4a';
+    mCtx.fillRect(railLeft, trackY + 4, railRight - railLeft, 6);
+    // Rail channel
+    mCtx.fillStyle = 'rgba(5,12,26,0.9)';
+    mCtx.fillRect(railLeft, trackY - 1, railRight - railLeft, 5);
+    // End-stops
+    [[railLeft - 2, 8], [railRight - 6, 8]].forEach(([ex, ew]) => {
+        mCtx.fillStyle = '#0d1829';
+        mCtx.fillRect(ex, trackY - 16, ew, 34);
+        mCtx.strokeStyle = 'rgba(251,113,133,0.3)'; mCtx.lineWidth = 1;
+        mCtx.strokeRect(ex, trackY - 16, ew, 34);
+    });
+    // Rail label
+    mCtx.fillStyle = 'rgba(56,100,160,0.4)';
+    mCtx.font = '7px JetBrains Mono,monospace'; mCtx.textAlign = 'left';
+    mCtx.fillText('GUIA LINEAR · LM RAIL', railLeft + 6, trackY + 14);
+
+    // ─ Motion ghost trail
+    macroTableHistory.forEach((hx, idx) => {
+        const a = (idx / macroTableHistory.length) * 0.07 * speedFactor;
+        if (a < 0.004) return;
+        mCtx.fillStyle = `rgba(22,50,80,${a})`;
+        mCtx.beginPath(); mCtx.roundRect(hx - tableW/2, tableTop, tableW, tableH, 4); mCtx.fill();
+    });
+    macroTableHistory.push(tableX);
+    if (macroTableHistory.length > 10) macroTableHistory.shift();
+
+    // ─ Table platform
+    const tLeft = tableX - tableW / 2;
+    const tableBodyColor = isLocked ? '#0e1b2e' : '#162840';
+    mCtx.fillStyle = tableBodyColor;
+    mCtx.beginPath(); mCtx.roundRect(tLeft, tableTop, tableW, tableH, 4); mCtx.fill();
+    // Table top surface (where patient lies)
+    const topSurf = isLocked ? 'rgba(70,110,170,0.45)' : 'rgba(110,170,230,0.70)';
+    mCtx.fillStyle = topSurf;
+    mCtx.beginPath(); mCtx.roundRect(tLeft, tableTop, tableW, 7, [4,4,0,0]); mCtx.fill();
+    // Sheen
+    const sh = mCtx.createLinearGradient(tLeft, tableTop, tLeft + tableW, tableTop);
+    sh.addColorStop(0, 'rgba(255,255,255,0)');
+    sh.addColorStop(0.5, `rgba(255,255,255,${isLocked ? 0.03 : 0.08})`);
+    sh.addColorStop(1, 'rgba(255,255,255,0)');
+    mCtx.fillStyle = sh; mCtx.fillRect(tLeft, tableTop, tableW, 7);
+    // Table border
+    const tb = isLocked ? 'rgba(251,113,133,0.75)' : (isBraking ? 'rgba(251,191,36,0.55)' : 'rgba(34,139,253,0.35)');
+    mCtx.strokeStyle = tb; mCtx.lineWidth = isLocked ? 1.5 : 1;
+    mCtx.beginPath(); mCtx.roundRect(tLeft, tableTop, tableW, tableH, 4); mCtx.stroke();
+    // Slide blocks (connect table to rail)
+    [[tLeft + 12, 8], [tLeft + tableW - 20, 8]].forEach(([sx, sw]) => {
+        mCtx.fillStyle = '#1e3a5f';
+        mCtx.fillRect(sx, trackY - 6, sw, 10);
+    });
+    // Table label
+    mCtx.fillStyle = 'rgba(140,185,225,0.85)';
+    mCtx.font = '700 8px JetBrains Mono,monospace'; mCtx.textAlign = 'center';
+    mCtx.fillText('MESA DE EXAME', tableX, tableTop - 5);
+
+    // ─ Brake housing (under table, centered)
+    const bhW = 62, bhH = 22;
+    const bhX = tableX - bhW / 2, bhY = trackY + 4;
+    const bhBg = isLocked ? '#280a0c' : (isBraking ? '#231a06' : '#0a1422');
+    mCtx.fillStyle = bhBg;
+    mCtx.beginPath(); mCtx.roundRect(bhX, bhY, bhW, bhH, 3); mCtx.fill();
+    const bhBd = isLocked ? 'rgba(251,113,133,0.65)' : (isBraking ? 'rgba(251,191,36,0.5)' : 'rgba(167,139,250,0.3)');
+    mCtx.strokeStyle = bhBd; mCtx.lineWidth = 1;
+    mCtx.beginPath(); mCtx.roundRect(bhX, bhY, bhW, bhH, 3); mCtx.stroke();
+    // LED
+    const ledCol = isLocked ? '#fb7185' : (isBraking ? '#fbbf24' : '#34d399');
+    const ledPulse = isBraking ? (0.65 + 0.35 * Math.sin(Date.now() * 0.012)) : (isLocked ? (0.7 + 0.3 * Math.sin(Date.now() * 0.008)) : 1);
+    mCtx.fillStyle = ledCol;
+    mCtx.shadowColor = ledCol; mCtx.shadowBlur = 7 * ledPulse;
+    mCtx.beginPath(); mCtx.arc(bhX + bhW - 10, bhY + bhH/2, 3.5, 0, Math.PI*2); mCtx.fill();
+    mCtx.shadowBlur = 0;
+    const bhLabel = isLocked ? 'TRAVADO' : (isBraking ? 'FREANDO' : 'LIVRE');
+    mCtx.fillStyle = ledCol;
+    mCtx.font = '700 7px JetBrains Mono,monospace'; mCtx.textAlign = 'left';
+    mCtx.fillText(bhLabel, bhX + 7, bhY + 14);
+
+    // ─ Zoom indicator (connects to detail view below)
+    mCtx.setLineDash([2, 3]);
+    mCtx.strokeStyle = 'rgba(167,139,250,0.45)'; mCtx.lineWidth = 1;
+    mCtx.strokeRect(bhX - 5, bhY - 3, bhW + 10, bhH + 6);
+    mCtx.setLineDash([]);
+    mCtx.fillStyle = 'rgba(167,139,250,0.65)';
+    mCtx.font = '700 7px JetBrains Mono,monospace'; mCtx.textAlign = 'center';
+    mCtx.fillText('ZOOM ↓', tableX, bhY + bhH + 11);
+
+    // ─ Motion direction arrow
+    if (speedFactor > 0.04 && !isLocked) {
+        const vel = Math.cos(sys.tablePhase);
+        const dir = vel >= 0 ? 1 : -1;
+        const aa  = Math.min(1, speedFactor * 1.4);
+        const ay  = tableTop + tableH/2;
+        mCtx.strokeStyle = `rgba(34,211,238,${aa * 0.75})`; mCtx.lineWidth = 1.5;
+        mCtx.beginPath();
+        mCtx.moveTo(tableX + dir * (tableW/2 + 3), ay);
+        mCtx.lineTo(tableX + dir * (tableW/2 + 20), ay);
+        mCtx.stroke();
+        mCtx.fillStyle = `rgba(34,211,238,${aa * 0.75})`;
+        const ax = tableX + dir * (tableW/2 + 22);
+        mCtx.beginPath();
+        mCtx.moveTo(ax, ay); mCtx.lineTo(ax - dir*8, ay-5); mCtx.lineTo(ax - dir*8, ay+5);
+        mCtx.closePath(); mCtx.fill();
+    }
+
+    // ─ Position ruler (top strip)
+    const rulerY = 12;
+    mCtx.strokeStyle = 'rgba(56,100,160,0.28)'; mCtx.lineWidth = 1;
+    mCtx.beginPath(); mCtx.moveTo(railLeft, rulerY); mCtx.lineTo(railRight, rulerY); mCtx.stroke();
+    for (let tx = railLeft; tx <= railRight; tx += 35) {
+        mCtx.beginPath(); mCtx.moveTo(tx, rulerY-2); mCtx.lineTo(tx, rulerY+2); mCtx.stroke();
+    }
+    mCtx.setLineDash([3,3]);
+    mCtx.strokeStyle = 'rgba(34,211,238,0.12)';
+    mCtx.beginPath(); mCtx.moveTo(tableCX, rulerY+4); mCtx.lineTo(tableCX, tableTop-5); mCtx.stroke();
+    mCtx.setLineDash([]);
+    // Position dot on ruler
+    mCtx.fillStyle = '#22d3ee';
+    mCtx.shadowColor = 'rgba(34,211,238,0.6)'; mCtx.shadowBlur = 6;
+    mCtx.beginPath(); mCtx.arc(tableX, rulerY, 3.5, 0, Math.PI*2); mCtx.fill();
+    mCtx.shadowBlur = 0;
+
+    // ─ Flat-panel detector (fixed below rail, at tube center)
+    const dtW = 90, dtH = 12;
+    const dtX = tubeX - dtW/2, dtY = ch - 18;
+    mCtx.fillStyle = '#0a1422';
+    mCtx.beginPath(); mCtx.roundRect(dtX, dtY, dtW, dtH, 2); mCtx.fill();
+    mCtx.strokeStyle = 'rgba(34,211,238,0.18)'; mCtx.lineWidth = 1;
+    mCtx.beginPath(); mCtx.roundRect(dtX, dtY, dtW, dtH, 2); mCtx.stroke();
+    mCtx.fillStyle = 'rgba(34,211,238,0.28)';
+    mCtx.font = '7px JetBrains Mono,monospace'; mCtx.textAlign = 'center';
+    mCtx.fillText('DETECTOR FPD', tubeX, dtY + 9);
+
+    // ─ Velocity readout
+    const vDisplay = (Math.abs(Math.cos(sys.tablePhase)) * speedFactor * 0.32).toFixed(2);
+    mCtx.fillStyle = 'rgba(77,95,115,0.65)';
+    mCtx.font = '9px JetBrains Mono,monospace'; mCtx.textAlign = 'right';
+    mCtx.fillText(`v = ${vDisplay} m/s`, cw - 16, ch - 6);
+
+    mCtx.restore();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  DISC CANVAS (brake detail overlay)
+// ═══════════════════════════════════════════════════════════════════════════
+const discCv  = document.getElementById('discCanvas');
+const discCtx = discCv.getContext('2d');
+
+// Disc bounding box in SVG viewBox (480×500)
+const DISC_SVG = { x: 110, y: 255, w: 260, h: 50 };
+
+function positionDiscCanvas() {
+    const svg        = document.getElementById('assembly');
+    const svgRect    = svg.getBoundingClientRect();
+    const detailRect = document.getElementById('detailPane').getBoundingClientRect();
+    const scaleX = svgRect.width  / 480;
+    const scaleY = svgRect.height / 500;
+
+    const left = (svgRect.left - detailRect.left) + DISC_SVG.x * scaleX;
+    const top  = (svgRect.top  - detailRect.top)  + DISC_SVG.y * scaleY;
+    const w    = DISC_SVG.w * scaleX;
+    const h    = DISC_SVG.h * scaleY;
+
+    discCv.style.left   = left + 'px';
+    discCv.style.top    = top  + 'px';
+    discCv.style.width  = w    + 'px';
+    discCv.style.height = h    + 'px';
+
+    const dpr = window.devicePixelRatio || 1;
+    discCv.width  = Math.round(w * dpr);
+    discCv.height = Math.round(h * dpr);
+    discCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+positionDiscCanvas();
+
+function drawDiscCanvas(forcePercent) {
+    const dw = discCv.width  / (window.devicePixelRatio || 1);
+    const dh = discCv.height / (window.devicePixelRatio || 1);
+    const cx = dw / 2, cy = dh / 2;
+    const rx = dw / 2, ry = dh / 2;
+    const hubR = Math.min(cx, cy) * 0.55;
+
+    discCtx.clearRect(0, 0, dw, dh);
+    discCtx.save();
+
+    // Clip to disc rounded-rect shape
+    const r = 6 * (dh / 50);
+    discCtx.beginPath();
+    discCtx.roundRect(0, 0, dw, dh, r);
+    discCtx.clip();
+
+    const angleRad       = (sys.discRotAngle * Math.PI) / 180;
+    const NUM_SPOKES     = 8;
+    const spokeStep      = (2 * Math.PI) / NUM_SPOKES;
+    const speedFactor    = sys.rpm / sys.maxRpm;
+
+    // Draw spokes (elliptical to match disc aspect ratio)
+    for (let i = 0; i < NUM_SPOKES; i++) {
+        const a = angleRad + i * spokeStep;
+        const cosA = Math.cos(a), sinA = Math.sin(a);
+
+        const x0 = cx + cosA * hubR;
+        const y0 = cy + sinA * (hubR * ry / rx);
+        const x1 = cx + cosA * (rx - 5);
+        const y1 = cy + sinA * (ry - 3);
+
+        // Solid bright spoke
+        discCtx.beginPath();
+        discCtx.moveTo(x0, y0); discCtx.lineTo(x1, y1);
+        discCtx.strokeStyle = 'rgba(210,235,255,1.0)';
+        discCtx.lineWidth = 2.5; discCtx.lineCap = 'round';
+        discCtx.stroke();
+
+        // Glow halo
+        discCtx.beginPath();
+        discCtx.moveTo(x0, y0); discCtx.lineTo(x1, y1);
+        discCtx.strokeStyle = 'rgba(160,210,255,0.28)';
+        discCtx.lineWidth = 5; discCtx.stroke();
+    }
+
+    // Rim ellipse (brightens with speed)
+    discCtx.beginPath();
+    discCtx.ellipse(cx, cy, rx - 5, ry - 3, 0, 0, Math.PI * 2);
+    discCtx.strokeStyle = `rgba(160,210,255,${0.18 + speedFactor * 0.45})`;
+    discCtx.lineWidth = 1.5; discCtx.stroke();
+
+    // Braking heat tint
+    if (forcePercent > 0.05) {
+        discCtx.fillStyle = `rgba(251,80,60,${forcePercent * 0.22})`;
+        discCtx.fillRect(0, 0, dw, dh);
+    }
+
+    discCtx.restore();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  FMEA ENGINE
+// ═══════════════════════════════════════════════════════════════════════════
+let activeFMEA = new Set();
+function checkFMEA(forcePercent) {
+    const alerts = [];
+    if (sys.R > 60)  alerts.push({ type:'warn',  code:'FMEA-01', msg:`R=${sys.R.toFixed(0)}Ω excessivo — simula aquecimento Joule. Corrente caiu ${((1-24/sys.R/(24/DEFAULTS.R))*100).toFixed(0)}% · Risco: freio escorregando.` });
+    if (sys.R > 80)  alerts.push({ type:'error', code:'FMEA-02', msg:`CRÍTICO: R=${sys.R.toFixed(0)}Ω · I_max=${(24/sys.R).toFixed(3)}A insuficiente. Mesa pode se mover com freio "ativo".` });
+    if (sys.g > 2.0) alerts.push({ type:'warn',  code:'FMEA-03', msg:`Entreferro g=${sys.g.toFixed(1)}mm — desgaste crítico da lona. Força ÷${((sys.g/DEFAULTS.g)**2).toFixed(1)}x vs. nominal.` });
+    if (sys.g > 3.5) alerts.push({ type:'error', code:'FMEA-04', msg:`FALHA MECÂNICA: g=${sys.g.toFixed(1)}mm. Substituição imediata da lona necessária.` });
+    if (sys.N < 150) alerts.push({ type:'warn',  code:'FMEA-05', msg:`N=${sys.N} espiras insuficientes. Torque de frenagem comprometido.` });
+    if (forcePercent > 0.8 && sys.rpm > 800) alerts.push({ type:'warn', code:'FMEA-06', msg:`Alta energia de frenagem: Q = ½·J·ω². Risco de sobreaquecimento do disco.` });
+
+    const newK = alerts.map(a=>a.code).sort().join('|');
+    const curK = [...activeFMEA].sort().join('|');
+    if (newK !== curK) {
+        activeFMEA = new Set(alerts.map(a=>a.code));
+        el.fmeaPanel.innerHTML = '';
+        if (alerts.length > 0) {
+            el.fmeaContainer.style.display = 'block';
+            alerts.forEach(a => {
+                const d = document.createElement('div');
+                d.className = `fmea-alert fmea-${a.type}`;
+                d.innerHTML = `<span class="fmea-icon">${a.type==='error'?'🚨':'⚠️'}</span><div><strong>${a.code}</strong> — ${a.msg}</div>`;
+                el.fmeaPanel.appendChild(d);
+            });
+        } else { el.fmeaContainer.style.display = 'none'; }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  MAIN PHYSICS LOOP
+// ═══════════════════════════════════════════════════════════════════════════
+function simulationLoop(timestamp) {
+    let dt = (timestamp - sys.lastTime) / 1000;
+    if (dt > 0.1) dt = 0.016;
+    sys.lastTime = timestamp;
+
+    // ── STEP 1: RL circuit  dI/dt = (V − R·I) / L
+    const dI = ((sys.targetV - sys.R * sys.I) / sys.L) * dt;
+    sys.I += dI;
+    if (sys.I < 0) sys.I = 0;
+
+    // ── STEP 2: Maxwell force  F ∝ (N·I)² / g²
+    const MMF     = sys.N * sys.I;
+    const g_norm  = sys.g / DEFAULTS.g;
+    const MMF_nom = DEFAULTS.N * (24 / DEFAULTS.R);
+    let forcePercent = Math.pow(MMF / MMF_nom, 2) / Math.pow(g_norm, 2);
+    forcePercent = Math.min(1, Math.max(0, forcePercent));
+
+    // ── STEP 3: Kinematics
+    if (forcePercent > 0.04) {
+        sys.rpm -= forcePercent * 3500 * dt;
+        if (sys.rpm < 0) sys.rpm = 0;
+    } else {
+        sys.rpm += sys.motorTorque * 100 * dt;
+        if (sys.rpm > sys.maxRpm) sys.rpm = sys.maxRpm;
+    }
+
+    // ── Disc angle (for detail view)
+    sys.discRotAngle = (sys.discRotAngle + (sys.rpm / 60) * 360 * dt) % 360;
+    sys.fieldDash    = (sys.fieldDash + 1.5) % 100;
+
+    // ── Table oscillation (for macro view)
+    const tableHz = (sys.rpm / sys.maxRpm) * 0.22;
+    sys.tablePhase += tableHz * 2 * Math.PI * dt;
+
+    // ── Render
+    updateTelemetry(forcePercent, MMF);
+    updateSVG(forcePercent);
+    checkFMEA(forcePercent);
+    drawMacroView();
+
+    sys.history.push({ v:sys.targetV, i:sys.I, r:sys.rpm, f:forcePercent*100 });
+    if (sys.history.length > 100) sys.history.shift();
+    drawChart();
+
+    requestAnimationFrame(simulationLoop);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  TELEMETRY RENDERER
+// ═══════════════════════════════════════════════════════════════════════════
+function updateTelemetry(forcePercent, MMF) {
+    el.valV.innerHTML  = sys.targetV.toFixed(1) + '<span style="font-size:13px;color:var(--text-mid);font-weight:400;"> V</span>';
+    el.valI.textContent  = sys.I.toFixed(3);
+    el.valF.textContent  = (forcePercent * 100).toFixed(0);
+    el.valRPM.textContent = Math.floor(sys.rpm);
+    el.valMMF.textContent = MMF.toFixed(0);
+
+    const maxI = sys.R > 0 ? (24 / sys.R) : 0;
+    el.barI.style.width   = Math.min(100, (sys.I / maxI) * 100) + '%';
+    el.barF.style.width   = (forcePercent * 100) + '%';
+    el.barRPM.style.width = (sys.rpm / sys.maxRpm) * 100 + '%';
+
+    const badge = el.statusBadge;
+    if (sys.rpm === 0) {
+        badge.className = 'status-badge status-locked';
+        el.statusText.textContent = 'Mesa Travada';
+    } else if (forcePercent > 0.04) {
+        badge.className = 'status-badge status-braking';
+        el.statusText.textContent = 'Frenagem Ativa';
+    } else {
+        badge.className = 'status-badge status-free';
+        el.statusText.textContent = 'Mesa em Movimento';
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  SVG VISUAL RENDERER (brake detail)
+// ═══════════════════════════════════════════════════════════════════════════
+function updateSVG(forcePercent) {
+    // Coil glow
+    el.coilGlow.setAttribute('fill', `rgba(34,211,238,${forcePercent * 0.25})`);
+    el.coilGlow.setAttribute('opacity', forcePercent);
+
+    // Field lines + dash animation
+    el.fieldLines.setAttribute('opacity', forcePercent);
+    const d = sys.fieldDash;
+    [el.fArc1L, el.fArc2L, el.fArc1R, el.fArc2R].forEach((a, i) =>
+        a.setAttribute('stroke-dashoffset', d * (i % 2 === 0 ? 1 : -1))
+    );
+
+    // Brake pad travel
+    const padY  = 184 + forcePercent * 40;
+    el.padRect.setAttribute('y',      padY);
+    el.padLining.setAttribute('y',    padY + 14);
+    el.padHighlight.setAttribute('y', padY);
+
+    // Contact glow
+    const isContact = forcePercent > 0.85;
+    el.contactGlow.setAttribute('y',       padY + 18);
+    el.contactGlow.setAttribute('opacity', isContact ? (0.6 + 0.4 * Math.sin(Date.now() * 0.02)) : 0);
+
+    // Disc heat
+    const heatAlpha = Math.max(0, forcePercent - 0.3) * 0.32;
+    el.discHeat.setAttribute('fill', `rgba(251,113,133,${heatAlpha})`);
+
+    // Disc canvas
+    drawDiscCanvas(forcePercent);
+
+    // Eddy currents
+    el.eddyIndicator.setAttribute('opacity', forcePercent > 0.5 ? forcePercent * 0.7 : 0);
+
+    // Rotation label & indicator
+    el.rotLabel.textContent = Math.floor(sys.rpm) + ' RPM';
+    el.rotIndicator.setAttribute('opacity', sys.rpm > 0 ? 0.6 : 0.1);
+
+    // Gap annotation
+    el.gapAnnotation.setAttribute('opacity', 0.6);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  CHART RENDERER
+// ═══════════════════════════════════════════════════════════════════════════
+function drawChart() {
+    const w   = el.canvas.width;
+    const h   = el.canvas.height;
+    const dpr = window.devicePixelRatio || 1;
+    const pad = 8 * dpr;
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = 'rgba(5,12,26,0.6)';
+    ctx.beginPath(); ctx.roundRect(0, 0, w, h, 6*dpr); ctx.fill();
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.lineWidth = 1;
+    for (let i = 1; i < 4; i++) {
+        const y = pad + (i/4) * (h - pad*2);
+        ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(w-pad, y); ctx.stroke();
+    }
+
+    const pts = sys.history.length;
+    if (pts < 2) return;
+    const stepX = (w - pad*2) / (pts - 1);
+
+    const plotLine = (fn, color, maxV, lw=2) => {
+        ctx.beginPath(); ctx.strokeStyle = color;
+        ctx.lineWidth = lw * dpr; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+        for (let i = 0; i < pts; i++) {
+            const val = fn(sys.history[i]);
+            const x = pad + i * stepX;
+            const y = h - pad - (Math.min(1, val/maxV) * (h - pad*2));
+            if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+        }
+        ctx.stroke();
+        ctx.globalAlpha = 0.22; ctx.lineWidth = (lw+3)*dpr;
+        ctx.shadowColor = color; ctx.shadowBlur = 6*dpr; ctx.stroke();
+        ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    };
+
+    plotLine(d=>d.v,       '#22d3ee', 25,  1.8);
+    plotLine(d=>d.i*10,    '#fbbf24', 7,   1.8);
+    plotLine(d=>d.r/100,   '#fb7185', 15,  1.8);
+    plotLine(d=>d.f,       '#a78bfa', 100, 1.5);
+
+    const last = sys.history[pts-1];
+    [
+        {val:last.v,       max:25,  c:'#22d3ee'},
+        {val:last.i*10,    max:7,   c:'#fbbf24'},
+        {val:last.r/100,   max:15,  c:'#fb7185'},
+        {val:last.f,       max:100, c:'#a78bfa'},
+    ].forEach(({val,max,c}) => {
+        const x = w - pad;
+        const y = h - pad - (Math.min(1,val/max)*(h-pad*2));
+        ctx.beginPath(); ctx.arc(x, y, 3.5*dpr, 0, Math.PI*2);
+        ctx.fillStyle = c; ctx.fill();
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════════════════════
+updateParamDisplays();
+requestAnimationFrame(simulationLoop);
+</script>
+</body>
+</html>

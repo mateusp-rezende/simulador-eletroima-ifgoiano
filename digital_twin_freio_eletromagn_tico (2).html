@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Twin: Freio Eletromagnético</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+        
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; overflow: hidden;}
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* Animation Keyframes */
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Hardware Components */
+        .shaft {
+            width: 20px; height: 300px;
+            background: linear-gradient(90deg, #475569, #94a3b8, #475569);
+            border-radius: 4px;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        .disc {
+            width: 240px; height: 40px;
+            background: repeating-linear-gradient(
+                90deg,
+                #64748b,
+                #64748b 10px,
+                #475569 10px,
+                #475569 20px
+            );
+            border-radius: 8px;
+            border-top: 2px solid #cbd5e1;
+            border-bottom: 3px solid #0f172a;
+            position: absolute;
+            top: 130px;
+            left: -110px;
+            box-shadow: 0 15px 25px rgba(0,0,0,0.5);
+            /* Speed controlled via JS */
+        }
+
+        .electromagnet {
+            width: 140px; height: 100px;
+            background: #1e293b;
+            border: 2px solid #334155;
+            border-radius: 12px 12px 0 0;
+            position: absolute;
+            top: -60px;
+            left: -60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 10;
+        }
+
+        .coil-windings {
+            width: 100px; height: 60px;
+            background: repeating-linear-gradient(0deg, #b45309, #d97706 4px, #78350f 5px);
+            border-radius: 6px;
+            border: 2px solid #78350f;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.8);
+            transition: box-shadow 0.1s;
+        }
+
+        /* Pad that moves down to brake */
+        .brake-pad {
+            width: 120px; height: 15px;
+            background: #cbd5e1;
+            border-radius: 4px;
+            position: absolute;
+            bottom: -20px;
+            left: 8px;
+            transition: transform 0.05s linear;
+            box-shadow: 0 5px 10px rgba(0,0,0,0.5);
+            z-index: 5;
+        }
+
+        /* Magnetic Field Lines */
+        .field-line {
+            position: absolute;
+            border: 2px dashed #0ea5e9; /* Cyan 500 */
+            border-radius: 50%;
+            opacity: 0;
+            transition: opacity 0.1s, transform 0.1s;
+            pointer-events: none;
+        }
+
+        /* Slider Customization */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 24px;
+            width: 24px;
+            border-radius: 50%;
+            background: #22d3ee;
+            cursor: pointer;
+            margin-top: -8px;
+            box-shadow: 0 0 15px rgba(34, 211, 238, 0.5);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 8px;
+            cursor: pointer;
+            background: #334155;
+            border-radius: 4px;
+        }
+        
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Component Inspection Styles */
+        .clickable { cursor: pointer; transition: filter 0.2s, outline 0.2s; outline: 2px solid transparent; outline-offset: 4px; }
+        .clickable:hover { filter: brightness(1.3); outline: 2px dashed #22d3ee; z-index: 50; }
+        .inspect-active { outline: 2px solid #22d3ee; filter: brightness(1.3); box-shadow: 0 0 20px rgba(34, 211, 238, 0.4); z-index: 50; }
+        
+        #hudPanel { transition: opacity 0.3s ease; }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="h-20 bg-slate-800 border-b border-slate-700 flex items-center px-8 justify-between shadow-lg z-20">
+        <div class="flex items-center gap-4">
+            <div class="w-10 h-10 bg-cyan-500/20 rounded-lg flex items-center justify-center border border-cyan-500/50">
+                <i class="fa-solid fa-microchip text-cyan-400 text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold text-slate-100 tracking-tight">Digital Twin: <span class="text-cyan-400">Freio Eletromagnético</span></h1>
+                <p class="text-xs text-slate-400 font-medium">Modelagem Analítica - Eletromagnetismo</p>
+            </div>
+        </div>
+        <div class="flex gap-6 mono text-sm text-slate-300">
+            <div class="flex flex-col"><span class="text-slate-500 text-xs">Resistência Bobina</span><span>38.0 Ω</span></div>
+            <div class="flex flex-col"><span class="text-slate-500 text-xs">Tensão Nominal</span><span>24.0 VCC</span></div>
+            <div class="flex flex-col"><span class="text-slate-500 text-xs">Indutância Est.</span><span>0.8 H</span></div>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 flex overflow-hidden">
+        
+        <!-- Left Column: Physical Simulation -->
+        <div class="w-1/2 relative bg-slate-900 flex items-center justify-center border-r border-slate-800 shadow-[inset_0_0_100px_rgba(0,0,0,0.5)]">
+            
+            <!-- Background Grid -->
+            <div class="absolute inset-0" style="background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 40px 40px;"></div>
+
+            <!-- HUD Overlay for Component Inspection -->
+            <div id="hudPanel" class="absolute top-6 left-6 w-80 bg-slate-900/90 backdrop-blur-md border border-cyan-500/50 rounded-xl p-5 shadow-2xl opacity-0 pointer-events-none z-50">
+                <div class="flex items-center gap-3 mb-3 border-b border-slate-700 pb-2">
+                    <i class="fa-solid fa-crosshairs text-cyan-400"></i>
+                    <h3 id="hudTitle" class="text-sm font-bold text-slate-100 uppercase tracking-widest">Selecione um Componente</h3>
+                </div>
+                <div class="space-y-3">
+                    <div>
+                        <span class="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Material Predominante</span>
+                        <p id="hudMaterial" class="text-xs text-cyan-300 font-mono mt-1">-</p>
+                    </div>
+                    <div>
+                        <span class="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Função Física/Estrutural</span>
+                        <p id="hudDesc" class="text-xs text-slate-300 leading-relaxed mt-1">-</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Simulation Assembly -->
+            <div class="relative flex flex-col items-center mt-32" style="transform: scale(1.2);">
+                
+                <!-- Electromagnet -->
+                <div id="core" class="electromagnet clickable">
+                    <div class="text-[10px] text-slate-400 font-bold mb-1 uppercase tracking-widest">Estator / Bobina</div>
+                    <div id="coil" class="coil-windings relative clickable">
+                        <!-- Field Lines (Dynamically styled) -->
+                        <div id="field1" class="field-line w-[160px] h-[100px] -left-[30px] -bottom-[40px]"></div>
+                        <div id="field2" class="field-line w-[220px] h-[140px] -left-[60px] -bottom-[60px]"></div>
+                    </div>
+                    <!-- Moving Armature (Pad) -->
+                    <div id="brakePad" class="brake-pad flex justify-center items-center clickable">
+                        <div class="w-full h-[4px] bg-slate-700 mt-2"></div>
+                    </div>
+                </div>
+
+                <!-- Shaft and Disc -->
+                <div class="relative flex justify-center h-[200px]">
+                    <div class="shaft z-0"></div>
+                    <div id="disc" class="disc z-10 clickable"></div>
+                </div>
+
+                <!-- Labels -->
+                <div class="absolute -right-48 top-10 flex items-center gap-2 pointer-events-none">
+                    <div class="w-12 h-px bg-slate-500"></div>
+                    <span class="text-xs text-slate-400 font-mono">Eletroímã (Fixo)</span>
+                </div>
+                <div class="absolute -left-48 top-40 flex items-center gap-2 pointer-events-none">
+                    <span class="text-xs text-slate-400 font-mono">Rotor (Eixo Móvel)</span>
+                    <div class="w-12 h-px bg-slate-500"></div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Right Column: Dashboard & Controls -->
+        <div class="w-1/2 bg-slate-900 p-8 flex flex-col gap-6 overflow-y-auto z-10">
+            
+            <!-- Control Center -->
+            <div class="glass-panel p-6 rounded-xl">
+                <div class="flex justify-between items-end mb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-100"><i class="fa-solid fa-sliders text-cyan-400 mr-2"></i>Controle de Potência</h2>
+                        <p class="text-sm text-slate-400">Ajuste a tensão aplicada à bobina para gerar o campo magnético.</p>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-3xl font-bold font-mono text-cyan-400" id="valVoltage">0.0<span class="text-lg text-slate-500">V</span></div>
+                    </div>
+                </div>
+                <input type="range" id="voltageSlider" min="0" max="24" step="0.1" value="0" class="w-full mt-4">
+                <div class="flex justify-between mt-2 text-xs text-slate-500 font-mono">
+                    <span>0V (Sistema Livre)</span>
+                    <span>24V (Travamento Máx)</span>
+                </div>
+            </div>
+
+            <!-- Telemetry Cards -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="glass-panel p-5 rounded-xl border-l-4 border-l-yellow-500">
+                    <div class="text-sm text-slate-400 mb-1 font-semibold">Corrente Induzida (I)</div>
+                    <div class="text-2xl font-bold font-mono text-slate-100"><span id="valCurrent">0.00</span> <span class="text-sm text-slate-500">A</span></div>
+                    <div class="text-xs text-slate-500 mt-2 font-mono">Lim: 0.63A (Lei de Ohm)</div>
+                </div>
+                <div class="glass-panel p-5 rounded-xl border-l-4 border-l-cyan-500">
+                    <div class="text-sm text-slate-400 mb-1 font-semibold">Força Magnética Relativa</div>
+                    <div class="text-2xl font-bold font-mono text-slate-100"><span id="valForce">0</span> <span class="text-sm text-slate-500">%</span></div>
+                    <div class="text-xs text-slate-500 mt-2 font-mono">Prop. ao quadrado da Corrente</div>
+                </div>
+                <div class="glass-panel p-5 rounded-xl border-l-4 border-l-rose-500 col-span-2">
+                    <div class="text-sm text-slate-400 mb-1 font-semibold flex justify-between">
+                        <span>Rotação do Eixo (Cinemática)</span>
+                        <span id="statusText" class="text-emerald-400 font-bold uppercase text-xs">Rotação Livre</span>
+                    </div>
+                    <div class="flex items-end gap-4">
+                        <div class="text-4xl font-bold font-mono text-slate-100"><span id="valRPM">1500</span> <span class="text-lg text-slate-500">RPM</span></div>
+                    </div>
+                    
+                    <!-- Progress Bar for RPM -->
+                    <div class="w-full bg-slate-800 h-2 rounded mt-4 overflow-hidden">
+                        <div id="barRPM" class="bg-rose-500 h-full w-full transition-all duration-75"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Chart -->
+            <div class="glass-panel p-6 rounded-xl flex-1 flex flex-col min-h-[250px]">
+                <h2 class="text-sm font-bold text-slate-300 mb-4 uppercase tracking-wider"><i class="fa-solid fa-chart-line text-cyan-400 mr-2"></i>Telemetria em Tempo Real</h2>
+                <div class="relative flex-1 bg-slate-800/50 border border-slate-700 rounded-lg overflow-hidden">
+                    <canvas id="liveChart" class="absolute inset-0 w-full h-full"></canvas>
+                </div>
+                <div class="flex gap-4 mt-4 justify-center text-xs font-mono text-slate-400">
+                    <div class="flex items-center gap-2"><div class="w-3 h-3 bg-cyan-400 rounded-full"></div> Tensão (V)</div>
+                    <div class="flex items-center gap-2"><div class="w-3 h-3 bg-yellow-400 rounded-full"></div> Corrente (A * 10)</div>
+                    <div class="flex items-center gap-2"><div class="w-3 h-3 bg-rose-500 rounded-full"></div> Rotação (RPM / 100)</div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        // --- PHYSICS ENGINE & STATE ---
+        const sys = {
+            R: 38.0,        // Resistencia da bobina (Ohms)
+            L: 0.8,         // Indutancia (Henrys) - Cria o atraso característico do eletromagnetismo
+            targetV: 0,     // Tensão definida no slider
+            I: 0,           // Corrente atual (Amperes)
+            rpm: 1500,      // Rotação atual
+            maxRpm: 1500,   // Rotação máxima do motor
+            motorTorque: 5, // Força do motor que tenta girar o eixo
+            frictionCoef: 1.2, // Fator multiplicador do freio
+            lastTime: performance.now(),
+            
+            // History for chart
+            history: Array(100).fill().map(() => ({ v:0, i:0, r:1500 }))
+        };
+
+        // --- DOM ELEMENTS ---
+        const elSlider = document.getElementById('voltageSlider');
+        const elV = document.getElementById('valVoltage');
+        const elI = document.getElementById('valCurrent');
+        const elF = document.getElementById('valForce');
+        const elRPM = document.getElementById('valRPM');
+        const elBarRPM = document.getElementById('barRPM');
+        const elStatus = document.getElementById('statusText');
+        
+        const uiDisc = document.getElementById('disc');
+        const uiPad = document.getElementById('brakePad');
+        const uiCoil = document.getElementById('coil');
+        const uiField1 = document.getElementById('field1');
+        const uiField2 = document.getElementById('field2');
+        
+        // Component Inspection Elements
+        const hudPanel = document.getElementById('hudPanel');
+        const hudTitle = document.getElementById('hudTitle');
+        const hudMaterial = document.getElementById('hudMaterial');
+        const hudDesc = document.getElementById('hudDesc');
+        const clickables = document.querySelectorAll('.clickable');
+
+        const dbComponents = {
+            'coil': {
+                title: "Bobina Solenoide",
+                material: "Fio de Cobre Esmaltado (AWG)",
+                desc: "Converte a energia elétrica (V) num campo magnético (B). A quantidade de espiras e a corrente definem a Força Magnetomotriz. A indutância nativa (0.8H) atrasa o pico de corrente, o que é visível no gráfico durante o acionamento."
+            },
+            'core': {
+                title: "Carcaça do Estator",
+                material: "Aço de Alta Permeabilidade Magnética",
+                desc: "Serve como um caminho de baixa relutância. O estator canaliza as linhas do fluxo magnético geradas pela bobina e concentra-as diretamente sobre a sapata, maximizando o vetor força."
+            },
+            'brakePad': {
+                title: "Armadura e Sapata",
+                material: "Aço Carbono + Revestimento de Fricção",
+                desc: "É a armadura móvel do circuito magnético. Ao ser atraída violentamente para o estator (com força proporcional a I²), prensa a lona de fricção contra o disco, anulando a energia cinética mecânica."
+            },
+            'disc': {
+                title: "Disco Rotor",
+                material: "Liga Metálica Termo-Dissipadora",
+                desc: "Fixo diretamente ao braço articulado do Raio-X. Gira livremente enquanto a tensão é 0V. Recebe o impacto mecânico da sapata e dissipa o atrito na forma de calor térmico."
+            }
+        };
+
+        // Setup click listeners for inspection
+        clickables.forEach(el => {
+            el.addEventListener('click', (e) => {
+                e.stopPropagation(); // Impede que clicar na bobina dispare o clique do estator (pai)
+                
+                clickables.forEach(c => c.classList.remove('inspect-active'));
+                el.classList.add('inspect-active');
+                
+                const data = dbComponents[el.id];
+                if(data) {
+                    hudTitle.textContent = data.title;
+                    hudMaterial.textContent = data.material;
+                    hudDesc.textContent = data.desc;
+                    hudPanel.style.opacity = '1';
+                }
+            });
+        });
+
+        // Click on background closes HUD
+        document.querySelector('.w-1\\/2.relative').addEventListener('click', () => {
+            clickables.forEach(c => c.classList.remove('inspect-active'));
+            hudPanel.style.opacity = '0';
+        });
+
+        const canvas = document.getElementById('liveChart');
+        const ctx = canvas.getContext('2d');
+
+        // Handle resizing for canvas
+        function resizeCanvas() {
+            canvas.width = canvas.clientWidth * window.devicePixelRatio;
+            canvas.height = canvas.clientHeight * window.devicePixelRatio;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Input Listener
+        elSlider.addEventListener('input', (e) => {
+            sys.targetV = parseFloat(e.target.value);
+        });
+
+        // --- MAIN SIMULATION LOOP ---
+        function simulationLoop(timestamp) {
+            // Delta time in seconds
+            let dt = (timestamp - sys.lastTime) / 1000;
+            if (dt > 0.1) dt = 0.016; // Prevent huge jumps if tab was inactive
+            sys.lastTime = timestamp;
+
+            // 1. ELECTRICAL EQUATION (RL Circuit)
+            // dI/dt = (V - R*I) / L
+            let dI = ((sys.targetV - (sys.R * sys.I)) / sys.L) * dt;
+            sys.I += dI;
+            if(sys.I < 0) sys.I = 0; // Prevent negative floating point errors
+
+            // 2. MAGNETIC FORCE (Simplified: Proportional to I^2)
+            let maxI = 24 / sys.R;
+            let currentRatio = sys.I / maxI;
+            let forcePercent = Math.pow(currentRatio, 2); // Non-linear magnetic force
+
+            // 3. MECHANICAL EQUATION (Kinematics)
+            // Braking Torque overcomes Motor Torque
+            let brakeTorque = forcePercent * 4000 * dt; // Braking power multiplier
+            
+            if (forcePercent > 0.05) { // If there is enough magnetic pull to create friction
+                sys.rpm -= brakeTorque;
+                if (sys.rpm < 0) sys.rpm = 0;
+            } else {
+                // Motor restores speed
+                sys.rpm += sys.motorTorque * 100 * dt;
+                if (sys.rpm > sys.maxRpm) sys.rpm = sys.maxRpm;
+            }
+
+            // --- UPDATE VISUALS ---
+            updateUI(forcePercent);
+            
+            // --- UPDATE CHART ---
+            sys.history.push({ v: sys.targetV, i: sys.I, r: sys.rpm });
+            if (sys.history.length > 100) sys.history.shift();
+            drawChart();
+
+            requestAnimationFrame(simulationLoop);
+        }
+
+        // --- UI RENDERER ---
+        function updateUI(forcePercent) {
+            // Numbers
+            elV.textContent = sys.targetV.toFixed(1);
+            elI.textContent = sys.I.toFixed(2);
+            elF.textContent = (forcePercent * 100).toFixed(0);
+            elRPM.textContent = Math.floor(sys.rpm);
+            
+            elBarRPM.style.width = `${(sys.rpm / sys.maxRpm) * 100}%`;
+
+            // Status Text
+            if (sys.rpm === 0) {
+                elStatus.textContent = "Travado";
+                elStatus.className = "text-rose-500 font-bold uppercase text-xs";
+            } else if (forcePercent > 0.1) {
+                elStatus.textContent = "Frenagem Ativa";
+                elStatus.className = "text-yellow-400 font-bold uppercase text-xs";
+            } else {
+                elStatus.textContent = "Rotação Livre";
+                elStatus.className = "text-emerald-400 font-bold uppercase text-xs";
+            }
+
+            // Animation Details
+            // 1. Disc Speed via CSS Animation duration
+            if (sys.rpm > 0) {
+                // Calculate seconds per rotation (60 / rpm)
+                let duration = 60 / sys.rpm;
+                uiDisc.style.animation = `spin ${duration}s linear infinite`;
+            } else {
+                uiDisc.style.animation = 'none';
+            }
+
+            // 2. Coil Glow (Heat/Energy)
+            let glow = forcePercent * 20;
+            uiCoil.style.boxShadow = `inset 0 0 15px rgba(0,0,0,0.8), 0 0 ${glow}px rgba(34, 211, 238, ${forcePercent * 0.8})`;
+
+            // 3. Field Lines Opacity
+            uiField1.style.opacity = forcePercent;
+            uiField2.style.opacity = forcePercent * 0.7;
+
+            // 4. Pad Movement (Attracted downwards towards disc)
+            // Normal gap is 0. Pulls down max 18px to touch the disc.
+            let padMovement = forcePercent * 18;
+            uiPad.style.transform = `translateY(${padMovement}px)`;
+        }
+
+        // --- CHART RENDERER ---
+        function drawChart() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            let w = canvas.width;
+            let h = canvas.height;
+            let padding = 10;
+            let pts = sys.history.length;
+            let step = (w - padding*2) / (pts - 1);
+
+            // Draw Grid
+            ctx.strokeStyle = "rgba(255,255,255,0.05)";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for(let i=0; i<4; i++) {
+                let y = padding + i*(h-padding*2)/3;
+                ctx.moveTo(padding, y);
+                ctx.lineTo(w-padding, y);
+            }
+            ctx.stroke();
+
+            // Function to plot a line
+            const plot = (dataMapFn, color, maxVal) => {
+                ctx.beginPath();
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 3 * window.devicePixelRatio;
+                ctx.lineJoin = 'round';
+                
+                for(let i=0; i<pts; i++) {
+                    let val = dataMapFn(sys.history[i]);
+                    let x = padding + i * step;
+                    // Invert Y axis, scale to maxVal
+                    let y = h - padding - ((val / maxVal) * (h - padding*2));
+                    
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            };
+
+            // Plot V (Cyan) - Max 25V
+            plot(d => d.v, "#22d3ee", 25);
+            
+            // Plot I (Yellow) - Scaled up for visibility (Max ~0.7A -> scale to 7 for graph)
+            plot(d => d.i * 10, "#facc15", 7);
+            
+            // Plot RPM (Rose) - Scaled down for visibility (Max 1500 -> scale to 15)
+            plot(d => d.r / 100, "#f43f5e", 15);
+        }
+
+        // Start Loop
+        requestAnimationFrame(simulationLoop);
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,2431 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Como Funciona um Eletroímã? · IF Goiano · Física</title>
+    <meta name="description"
+        content="Página interativa que explica o funcionamento de um eletroímã com animações e simulações físicas em tempo real. Instituto Federal Goiano — Física Eletromagnetismo.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap"
+        rel="stylesheet">
+    <style>
+        /* ═══════════════════════════════════════════════════════════════════
+           DESIGN TOKENS
+        ═══════════════════════════════════════════════════════════════════ */
+        :root {
+            --bg-deep: #04090f;
+            --bg-panel: #080f1c;
+            --bg-surface: #0c1828;
+            --bg-card: rgba(12, 24, 40, 0.7);
+            --border: rgba(34, 211, 238, 0.10);
+            --border-hi: rgba(34, 211, 238, 0.40);
+            --cyan: #22d3ee;
+            --cyan-dim: rgba(34, 211, 238, 0.12);
+            --yellow: #fbbf24;
+            --rose: #fb7185;
+            --green: #34d399;
+            --purple: #a78bfa;
+            --orange: #fb923c;
+            --text-hi: #f0f6fc;
+            --text-mid: #8b949e;
+            --text-dim: #4d5f73;
+            --glow-cyan: 0 0 32px rgba(34, 211, 238, 0.28);
+            --glow-yellow: 0 0 20px rgba(251, 191, 36, 0.28);
+            --glow-orange: 0 0 20px rgba(251, 146, 60, 0.28);
+        }
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-deep);
+            color: var(--text-hi);
+            overflow-x: hidden;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════
+           GLOBAL COMPONENTS
+        ═══════════════════════════════════════════════════════════════════ */
+        .section {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 80px 24px;
+            position: relative;
+        }
+
+        .section-inner {
+            width: 100%;
+            max-width: 1100px;
+        }
+
+        .section-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            color: var(--cyan);
+            margin-bottom: 14px;
+        }
+
+        .eyebrow-line {
+            width: 28px;
+            height: 1px;
+            background: var(--cyan);
+            opacity: 0.5;
+        }
+
+        .section-title {
+            font-size: clamp(28px, 4.5vw, 52px);
+            font-weight: 800;
+            line-height: 1.1;
+            letter-spacing: -0.02em;
+            color: var(--text-hi);
+            margin-bottom: 16px;
+        }
+
+        .section-title span {
+            color: var(--cyan);
+        }
+
+        .section-subtitle {
+            font-size: clamp(15px, 2vw, 18px);
+            color: var(--text-mid);
+            line-height: 1.7;
+            max-width: 640px;
+        }
+
+        .friendly-text {
+            background: rgba(34, 211, 238, 0.06);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--cyan);
+            border-radius: 10px;
+            padding: 14px 20px;
+            font-size: 14px;
+            color: var(--text-mid);
+            line-height: 1.7;
+            margin-top: 16px;
+        }
+
+        .friendly-text .emoji {
+            font-size: 18px;
+            margin-right: 6px;
+        }
+
+        /* Glass card */
+        .glass {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            backdrop-filter: blur(12px);
+        }
+
+        /* Formula box */
+        .formula-box {
+            background: rgba(4, 9, 15, 0.85);
+            border: 1px solid var(--border-hi);
+            border-radius: 12px;
+            padding: 18px 24px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 15px;
+            color: var(--cyan);
+            box-shadow: var(--glow-cyan), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+            position: relative;
+        }
+
+        .formula-box .formula-label {
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .formula-box .formula-result {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--yellow);
+            margin-top: 10px;
+        }
+
+        .formula-vars {
+            font-size: 12px;
+            color: var(--text-mid);
+            margin-top: 8px;
+            line-height: 1.8;
+        }
+
+        /* Slider */
+        .ctrl-slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.07);
+            border-radius: 999px;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .ctrl-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--cyan);
+            border: 3px solid var(--bg-deep);
+            box-shadow: var(--glow-cyan);
+            cursor: pointer;
+        }
+
+        .ctrl-slider.yellow::-webkit-slider-thumb {
+            background: var(--yellow);
+            box-shadow: var(--glow-yellow);
+        }
+
+        .ctrl-slider.orange::-webkit-slider-thumb {
+            background: var(--orange);
+            box-shadow: var(--glow-orange);
+        }
+
+        /* Value display */
+        .val-chip {
+            display: inline-flex;
+            align-items: baseline;
+            gap: 4px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .val-chip .val {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-hi);
+        }
+
+        .val-chip .unit {
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+
+        /* Clickable component */
+        .clickable {
+            cursor: pointer;
+            transition: filter 0.18s, outline 0.15s;
+            outline: 2px solid transparent;
+            outline-offset: 3px;
+        }
+
+        .clickable:hover {
+            filter: brightness(1.35);
+            outline: 2px dashed rgba(34, 211, 238, 0.6);
+        }
+
+        .clickable.active-inspect {
+            filter: brightness(1.45);
+            outline: 2px solid var(--cyan);
+            box-shadow: 0 0 18px rgba(34, 211, 238, 0.35);
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════
+           POPUP HUD
+        ═══════════════════════════════════════════════════════════════════ */
+        #hud {
+            position: fixed;
+            width: 320px;
+            background: rgba(4, 9, 15, 0.97);
+            backdrop-filter: blur(18px);
+            border: 1px solid var(--border-hi);
+            border-radius: 16px;
+            padding: 20px 22px;
+            box-shadow: 0 32px 80px rgba(0, 0, 0, 0.6), var(--glow-cyan);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.22s ease, transform 0.22s ease;
+            transform: translateY(8px) scale(0.97);
+            z-index: 9999;
+        }
+
+        #hud.show {
+            opacity: 1;
+            pointer-events: all;
+            transform: translateY(0) scale(1);
+        }
+
+        .hud-head {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .hud-icon {
+            width: 32px;
+            height: 32px;
+            background: rgba(34, 211, 238, 0.1);
+            border: 1px solid rgba(34, 211, 238, 0.35);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .hud-title {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--cyan);
+        }
+
+        .hud-subtitle {
+            font-size: 9px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-top: 2px;
+        }
+
+        .hud-field {
+            margin-bottom: 12px;
+        }
+
+        .hud-field-key {
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--text-dim);
+            margin-bottom: 4px;
+        }
+
+        .hud-field-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11.5px;
+            color: var(--cyan);
+            line-height: 1.55;
+        }
+
+        .hud-field-desc {
+            font-size: 12px;
+            color: var(--text-mid);
+            line-height: 1.65;
+        }
+
+        .hud-simple {
+            background: rgba(34, 211, 238, 0.05);
+            border-left: 2px solid var(--cyan);
+            border-radius: 0 6px 6px 0;
+            padding: 8px 12px;
+            font-size: 12px;
+            color: var(--text-mid);
+            line-height: 1.65;
+            margin-top: 10px;
+        }
+
+        .hud-close {
+            margin-top: 14px;
+            width: 100%;
+            padding: 8px;
+            background: rgba(34, 211, 238, 0.07);
+            border: 1px solid rgba(34, 211, 238, 0.25);
+            border-radius: 8px;
+            color: var(--cyan);
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            cursor: pointer;
+            transition: background 0.18s;
+        }
+
+        .hud-close:hover {
+            background: rgba(34, 211, 238, 0.14);
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════
+           NAV / HEADER
+        ═══════════════════════════════════════════════════════════════════ */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 500;
+            background: rgba(4, 9, 15, 0.9);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(14px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            height: 56px;
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-brand-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--cyan);
+            box-shadow: 0 0 10px var(--cyan);
+            animation: pulse-nav 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-nav {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1)
+            }
+
+            50% {
+                opacity: 0.5;
+                transform: scale(0.8)
+            }
+        }
+
+        .nav-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-hi);
+        }
+
+        .nav-subtitle {
+            font-size: 10px;
+            color: var(--text-dim);
+        }
+
+        .nav-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--cyan);
+            text-decoration: none;
+            padding: 6px 14px;
+            border: 1px solid rgba(34, 211, 238, 0.25);
+            border-radius: 8px;
+            background: rgba(34, 211, 238, 0.07);
+            transition: background 0.2s, border-color 0.2s;
+        }
+
+        .nav-link:hover {
+            background: rgba(34, 211, 238, 0.15);
+            border-color: rgba(34, 211, 238, 0.5);
+        }
+
+        .scroll-dots {
+            position: fixed;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 400;
+        }
+
+        .sdot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-dim);
+            cursor: pointer;
+            transition: background 0.25s, transform 0.25s;
+        }
+
+        .sdot.active {
+            background: var(--cyan);
+            transform: scale(1.4);
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════
+           SECTION 0 — HERO
+        ═══════════════════════════════════════════════════════════════════ */
+        #s0 {
+            overflow: hidden;
+            background: radial-gradient(ellipse 80% 60% at 50% 40%, rgba(34, 211, 238, 0.05) 0%, transparent 70%);
+        }
+
+        #heroCanvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(34, 211, 238, 0.08);
+            border: 1px solid rgba(34, 211, 238, 0.25);
+            border-radius: 999px;
+            padding: 6px 16px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--cyan);
+            margin-bottom: 28px;
+        }
+
+        .hero-title {
+            font-size: clamp(36px, 7vw, 80px);
+            font-weight: 900;
+            line-height: 1.0;
+            letter-spacing: -0.03em;
+            margin-bottom: 24px;
+        }
+
+        .hero-title .line1 {
+            color: var(--text-hi);
+            display: block;
+        }
+
+        .hero-title .line2 {
+            color: var(--cyan);
+            display: block;
+        }
+
+        .hero-desc {
+            font-size: clamp(15px, 2vw, 19px);
+            color: var(--text-mid);
+            line-height: 1.7;
+            max-width: 580px;
+            margin-bottom: 36px;
+        }
+
+        .cta-row {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .cta-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 13px 28px;
+            font-size: 14px;
+            font-weight: 700;
+            border-radius: 12px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .cta-primary {
+            background: var(--cyan);
+            color: var(--bg-deep);
+            box-shadow: var(--glow-cyan);
+        }
+
+        .cta-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 40px rgba(34, 211, 238, 0.5);
+        }
+
+        .cta-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-hi);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .cta-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .hero-stats {
+            display: flex;
+            gap: 32px;
+            margin-top: 48px;
+            flex-wrap: wrap;
+        }
+
+        .hstat {
+            border-left: 2px solid var(--border-hi);
+            padding-left: 14px;
+        }
+
+        .hstat-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text-hi);
+        }
+
+        .hstat-label {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-top: 2px;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════
+           SECTION DIVIDERS
+        ═══════════════════════════════════════════════════════════════════ */
+        .section-divider {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--border-hi), transparent);
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════
+           SECTION 1 — BOBINA / AMPÈRE
+        ═══════════════════════════════════════════════════════════════════ */
+        #s1 {
+            background: var(--bg-panel);
+        }
+
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            align-items: center;
+        }
+
+        @media (max-width: 760px) {
+            .two-col {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        #coilCanvas {
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 12px;
+            background: rgba(4, 9, 15, 0.8);
+            border: 1px solid var(--border);
+            display: block;
+        }
+
+        .ctrl-row {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-bottom: 20px;
+        }
+
+        .ctrl-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-mid);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .ctrl-label .ctrl-val {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--cyan);
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════
+           SECTION 2 — CIRCUITO RL
+        ═══════════════════════════════════════════════════════════════════ */
+        #s2 {
+            background: var(--bg-deep);
+        }
+
+        #circuitCanvas {
+            width: 100%;
+            height: 280px;
+            border-radius: 12px;
+            background: rgba(4, 9, 15, 0.8);
+            border: 1px solid var(--border);
+            display: block;
+        }
+
+        #rlChart {
+            width: 100%;
+            height: 180px;
+            border-radius: 10px;
+            background: rgba(4, 9, 15, 0.7);
+            border: 1px solid var(--border);
+            display: block;
+            margin-top: 14px;
+        }
+
+        .tog-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 11px 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 700;
+            border: none;
+            transition: all 0.18s;
+        }
+
+        .tog-on {
+            background: var(--green);
+            color: #000;
+        }
+
+        .tog-off {
+            background: rgba(251, 113, 133, 0.15);
+            color: var(--rose);
+            border: 1px solid rgba(251, 113, 133, 0.3);
+        }
+
+        .tau-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(167, 139, 250, 0.12);
+            border: 1px solid rgba(167, 139, 250, 0.3);
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            color: var(--purple);
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════
+           SECTION 3 — FORÇA MAXWELL
+        ═══════════════════════════════════════════════════════════════════ */
+        #s3 {
+            background: var(--bg-panel);
+        }
+
+        #forceCanvas {
+            width: 100%;
+            height: 320px;
+            border-radius: 12px;
+            background: rgba(4, 9, 15, 0.8);
+            border: 1px solid var(--border);
+            display: block;
+        }
+
+        .heat-bar-track {
+            height: 10px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 999px;
+            overflow: hidden;
+            margin-top: 6px;
+        }
+
+        .heat-bar-fill {
+            height: 100%;
+            border-radius: 999px;
+            background: linear-gradient(90deg, var(--yellow), var(--orange), var(--rose));
+            transition: width 0.1s;
+        }
+
+        .force-meter {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 42px;
+            font-weight: 700;
+            color: var(--text-hi);
+            line-height: 1;
+            text-shadow: 0 0 30px rgba(251, 191, 36, 0.4);
+        }
+
+        .force-meter .unit {
+            font-size: 18px;
+            color: var(--text-dim);
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════
+           SECTION 4 — EXPERIMENTO REAL
+        ═══════════════════════════════════════════════════════════════════ */
+        #s4 {
+            background: var(--bg-deep);
+        }
+
+        .result-card {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            padding: 16px 18px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: rgba(4, 9, 15, 0.5);
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+        .result-card:hover {
+            border-color: var(--border-hi);
+            background: rgba(34, 211, 238, 0.04);
+        }
+
+        .result-card.validated {
+            border-color: rgba(52, 211, 153, 0.4);
+        }
+
+        .result-check {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .result-check.ok {
+            background: rgba(52, 211, 153, 0.15);
+        }
+
+        .result-card .rc-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-hi);
+        }
+
+        .result-card .rc-eq {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--cyan);
+            margin-top: 4px;
+        }
+
+        .result-card .rc-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--yellow);
+            margin-top: 2px;
+        }
+
+        /* bench illustration */
+        #benchCanvas {
+            width: 100%;
+            height: 260px;
+            border-radius: 12px;
+            background: #060d1a;
+            border: 1px solid var(--border);
+            display: block;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════
+           SECTION 5 — REFERÊNCIAS
+        ═══════════════════════════════════════════════════════════════════ */
+        #s5 {
+            background: var(--bg-panel);
+            min-height: auto;
+            padding: 80px 24px 100px;
+        }
+
+        .ref-card {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            padding: 18px 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: rgba(4, 9, 15, 0.5);
+            margin-bottom: 12px;
+        }
+
+        .ref-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            background: rgba(34, 211, 238, 0.08);
+        }
+
+        .ref-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-hi);
+        }
+
+        .ref-author {
+            font-size: 12px;
+            color: var(--text-mid);
+            margin-top: 3px;
+        }
+
+        .team-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+            padding: 20px 24px;
+            border-radius: 14px;
+            background: rgba(34, 211, 238, 0.04);
+            border: 1px solid var(--border-hi);
+            margin-top: 24px;
+        }
+
+        .team-left .t-inst {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--cyan);
+        }
+
+        .team-left .t-names {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-hi);
+            margin-top: 4px;
+        }
+
+        .team-left .t-sub {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-top: 2px;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════
+           PROGRESS BAR
+        ═══════════════════════════════════════════════════════════════════ */
+        #progress {
+            position: fixed;
+            top: 56px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: transparent;
+            z-index: 490;
+        }
+
+        #progressBar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--cyan), var(--purple));
+            transition: width 0.1s;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════
+           PARTICLES
+        ═══════════════════════════════════════════════════════════════════ */
+        .particle {
+            position: absolute;
+            pointer-events: none;
+            border-radius: 50%;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ══ POPUP HUD ══════════════════════════════════════════════════════════ -->
+    <div id="hud">
+        <div class="hud-head">
+            <div class="hud-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2.5"
+                    stroke-linecap="round">
+                    <circle cx="12" cy="12" r="3" />
+                    <line x1="12" y1="2" x2="12" y2="7" />
+                    <line x1="12" y1="17" x2="12" y2="22" />
+                    <line x1="2" y1="12" x2="7" y2="12" />
+                    <line x1="17" y1="12" x2="22" y2="12" />
+                </svg>
+            </div>
+            <div>
+                <div class="hud-title" id="hudTitle">Inspecionando</div>
+                <div class="hud-subtitle" id="hudSub">Clique para explorar</div>
+            </div>
+        </div>
+        <div class="hud-field">
+            <div class="hud-field-key">Material / Tipo</div>
+            <div class="hud-field-val" id="hudMat">—</div>
+        </div>
+        <div class="hud-field">
+            <div class="hud-field-key">Parâmetro Físico</div>
+            <div class="hud-field-val" id="hudParam">—</div>
+        </div>
+        <div class="hud-field">
+            <div class="hud-field-key">Função no Circuito</div>
+            <div class="hud-field-desc" id="hudFn">—</div>
+        </div>
+        <div class="hud-simple" id="hudSimple">—</div>
+        <button class="hud-close" onclick="closeHud()">✕ Fechar</button>
+    </div>
+
+    <!-- ══ PROGRESS ══════════════════════════════════════════════════════════ -->
+    <div id="progress">
+        <div id="progressBar"></div>
+    </div>
+
+    <!-- ══ NAVIGATION ════════════════════════════════════════════════════════ -->
+    <nav>
+        <div class="nav-brand">
+            <div class="nav-brand-dot"></div>
+            <div>
+                <div class="nav-title">Eletroímã Interativo</div>
+                <div class="nav-subtitle">IF Goiano · Física Eletromagnetismo</div>
+            </div>
+        </div>
+        <a href="digital_twin_freio_eletromagn_tico.html" class="nav-link" target="_blank">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
+            </svg>
+            Digital Twin Industrial ↗
+        </a>
+    </nav>
+
+    <!-- ══ SCROLL DOTS ════════════════════════════════════════════════════════ -->
+    <div class="scroll-dots">
+        <div class="sdot active" onclick="scrollTo(0)" title="Início"></div>
+        <div class="sdot" onclick="scrollTo(1)" title="Bobina"></div>
+        <div class="sdot" onclick="scrollTo(2)" title="Circuito RL"></div>
+        <div class="sdot" onclick="scrollTo(3)" title="Força"></div>
+        <div class="sdot" onclick="scrollTo(4)" title="Experimento"></div>
+        <div class="sdot" onclick="scrollTo(5)" title="Referências"></div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+     SEÇÃO 0 — HERO
+══════════════════════════════════════════════════════════════════════════ -->
+    <section class="section" id="s0">
+        <canvas id="heroCanvas"></canvas>
+        <div class="section-inner" style="position:relative;z-index:2;">
+            <div class="hero-badge">
+                <span>⚡</span> Instituto Federal Goiano · Física Eletromagnetismo
+            </div>
+            <h1 class="hero-title">
+                <span class="line1">Como funciona</span>
+                <span class="line2">um Eletroímã?</span>
+            </h1>
+            <p class="hero-desc">
+                Um ímã que você <strong style="color:var(--text-hi)">liga e desliga</strong>.
+                Explore as equações reais que governam um freio eletromagnético industrial —
+                do experimento de bancada à simulação interativa.
+            </p>
+            <div class="cta-row">
+                <a href="#s1" class="cta-btn cta-primary">Começar a Explorar ↓</a>
+                <a href="digital_twin_freio_eletromagn_tico.html" class="cta-btn cta-secondary" target="_blank">Ver
+                    Digital Twin ↗</a>
+            </div>
+            <div class="hero-stats">
+                <div class="hstat">
+                    <div class="hstat-val mono">4</div>
+                    <div class="hstat-label">Fórmulas Interativas</div>
+                </div>
+                <div class="hstat">
+                    <div class="hstat-val mono">60Hz</div>
+                    <div class="hstat-label">Motor Físico</div>
+                </div>
+                <div class="hstat">
+                    <div class="hstat-val mono">500</div>
+                    <div class="hstat-label">Espiras na Bobina Real</div>
+                </div>
+                <div class="hstat">
+                    <div class="hstat-val mono">21ms</div>
+                    <div class="hstat-label">Tempo de Resposta (τ)</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+     SEÇÃO 1 — BOBINA / LEI DE AMPÈRE  (ℱ = N·I)
+══════════════════════════════════════════════════════════════════════════ -->
+    <section class="section" id="s1">
+        <div class="section-divider"></div>
+        <div class="section-inner">
+            <div class="section-eyebrow">
+                <div class="eyebrow-line"></div>Lei de Ampère · Seção 01<div class="eyebrow-line"></div>
+            </div>
+            <h2 class="section-title">A Bobina e o <span>Campo Magnético</span></h2>
+            <p class="section-subtitle">Quando a corrente elétrica percorre um fio enrolado em espiral (bobina), ela
+                cria um campo magnético ao redor. Quanto mais espiras e mais corrente, mais forte o ímã.</p>
+            <div class="friendly-text">
+                <span class="emoji">🔌</span> <strong>Linguagem simples:</strong>
+                Imagine que cada volta do fio é um trabalhador empurrando o campo magnético.
+                Mais trabalhadores (N) + mais força de cada um (I) = ímã mais poderoso!
+            </div>
+
+            <div class="two-col" style="margin-top:40px;">
+                <!-- LEFT: Animation -->
+                <div>
+                    <canvas id="coilCanvas"></canvas>
+                    <div style="display:flex;gap:14px;margin-top:12px;flex-wrap:wrap;justify-content:center;">
+                        <div class="clickable active-on-click" id="click-bobina" onclick="popupClick('bobina',event)"
+                            style="background:rgba(34,211,238,0.07);border:1px solid var(--border);border-radius:8px;padding:7px 14px;font-size:11px;color:var(--cyan);">
+                            🔍 Bobina (fio)</div>
+                        <div class="clickable" id="click-nucleo" onclick="popupClick('nucleo',event)"
+                            style="background:rgba(251,191,36,0.07);border:1px solid rgba(251,191,36,0.2);border-radius:8px;padding:7px 14px;font-size:11px;color:var(--yellow);">
+                            🔍 Núcleo de Ferro</div>
+                        <div class="clickable" id="click-campo" onclick="popupClick('campo',event)"
+                            style="background:rgba(34,211,238,0.05);border:1px solid var(--border);border-radius:8px;padding:7px 14px;font-size:11px;color:var(--cyan);">
+                            🔍 Campo Magnético</div>
+                    </div>
+                </div>
+
+                <!-- RIGHT: Controls + Formula -->
+                <div>
+                    <div class="glass" style="padding:24px;">
+                        <div class="ctrl-row">
+                            <div class="ctrl-label">
+                                <span>Corrente (I)</span>
+                                <span class="ctrl-val" id="v-I1">0.00 A</span>
+                            </div>
+                            <input type="range" class="ctrl-slider yellow" id="sl-I1" min="0" max="5" step="0.01"
+                                value="0">
+                            <div
+                                style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);font-family:'JetBrains Mono',monospace;">
+                                <span>0A (desligado)</span><span>5A (máx. fonte ICEL)</span>
+                            </div>
+                        </div>
+
+                        <div class="ctrl-row">
+                            <div class="ctrl-label">
+                                <span>Número de Espiras (N)</span>
+                                <span class="ctrl-val" id="v-N1">500 esp</span>
+                            </div>
+                            <input type="range" class="ctrl-slider" id="sl-N1" min="50" max="1000" step="10"
+                                value="500">
+                        </div>
+
+                        <div class="formula-box" style="margin-top:8px;">
+                            <div class="formula-label">Força Magnetomotriz — Lei de Ampère</div>
+                            <div style="font-size:18px;">ℱ = N · I</div>
+                            <div class="formula-vars">
+                                N = número de espiras · I = corrente (A)<br>
+                                ℱ = Força Magnetomotriz (A·espiras)
+                            </div>
+                            <div class="formula-result"><span id="v-MMF">0</span> <span
+                                    style="font-size:14px;color:var(--text-dim);">A·e</span></div>
+                        </div>
+
+                        <div
+                            style="margin-top:16px;padding:14px;background:rgba(34,211,238,0.04);border-radius:10px;border:1px solid var(--border);">
+                            <div
+                                style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-dim);margin-bottom:8px;">
+                                Experimento Real (IF Goiano)</div>
+                            <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-mid);">
+                                N = 500 esp · I = 0.632A<br>
+                                <span style="color:var(--green);">ℱ = 500 × 0.632 = <strong
+                                        style="color:var(--green);">316 A·e</strong></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+     SEÇÃO 2 — CIRCUITO RL  (τ = L/R, I(t))
+══════════════════════════════════════════════════════════════════════════ -->
+    <section class="section" id="s2">
+        <div class="section-divider"></div>
+        <div class="section-inner">
+            <div class="section-eyebrow">
+                <div class="eyebrow-line"></div>Circuito RL · Seção 02<div class="eyebrow-line"></div>
+            </div>
+            <h2 class="section-title">A "Preguiça" da <span>Bobina</span></h2>
+            <p class="section-subtitle">A bobina não aceita corrente de repente. Ela "resiste" à mudança graças à sua
+                indutância (L). Isso cria um atraso que pode ser calculado com precisão.</p>
+            <div class="friendly-text">
+                <span class="emoji">😴</span> <strong>Linguagem simples:</strong>
+                A bobina é como uma pessoa preguiçosa acordando de manhã — não sai do zero para o máximo de uma vez.
+                Ela leva um tempinho (<strong style="color:var(--purple);">τ</strong>) para chegar à velocidade total!
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:40px;align-items:start;">
+                <div>
+                    <!-- Circuit diagram -->
+                    <canvas id="circuitCanvas"></canvas>
+                    <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;">
+                        <div class="clickable" onclick="popupClick('fonte',event)"
+                            style="background:rgba(34,211,238,0.07);border:1px solid var(--border);border-radius:8px;padding:7px 14px;font-size:11px;color:var(--cyan);">
+                            🔍 Fonte (V)</div>
+                        <div class="clickable" onclick="popupClick('resistor',event)"
+                            style="background:rgba(251,113,133,0.07);border:1px solid rgba(251,113,133,0.2);border-radius:8px;padding:7px 14px;font-size:11px;color:var(--rose);">
+                            🔍 Resistor (R)</div>
+                        <div class="clickable" onclick="popupClick('indutor',event)"
+                            style="background:rgba(167,139,250,0.07);border:1px solid rgba(167,139,250,0.2);border-radius:8px;padding:7px 14px;font-size:11px;color:var(--purple);">
+                            🔍 Indutor (L)</div>
+                    </div>
+                    <!-- Graph -->
+                    <canvas id="rlChart"></canvas>
+                </div>
+
+                <div class="glass" style="padding:24px;">
+                    <!-- Toggle -->
+                    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap;">
+                        <button id="btnToggle" class="tog-btn tog-on" onclick="toggleRL()">▶ Liga a Fonte</button>
+                        <div class="tau-badge">τ = <span id="v-tau">21.1</span> ms</div>
+                    </div>
+
+                    <div class="ctrl-row">
+                        <div class="ctrl-label"><span>Tensão (V)</span><span class="ctrl-val" id="v-V2">24.0 V</span>
+                        </div>
+                        <input type="range" class="ctrl-slider yellow" id="sl-V2" min="0" max="32" step="0.5" value="24"
+                            oninput="rlUpdate()">
+                    </div>
+                    <div class="ctrl-row">
+                        <div class="ctrl-label"><span>Resistência (R)</span><span class="ctrl-val" id="v-R2">38.0
+                                Ω</span></div>
+                        <input type="range" class="ctrl-slider" id="sl-R2" min="5" max="100" step="0.5" value="38"
+                            oninput="rlUpdate()">
+                    </div>
+                    <div class="ctrl-row">
+                        <div class="ctrl-label"><span>Indutância (L)</span><span class="ctrl-val" id="v-L2">0.80
+                                H</span></div>
+                        <input type="range" class="ctrl-slider" id="sl-L2" min="0.05" max="3" step="0.05" value="0.8"
+                            oninput="rlUpdate()">
+                    </div>
+
+                    <!-- Formulas -->
+                    <div class="formula-box" style="margin-top:8px;">
+                        <div class="formula-label">Equações do Circuito RL</div>
+                        <div style="font-size:14px;line-height:2;">
+                            I<sub>max</sub> = V / R<br>
+                            τ = L / R<br>
+                            I(t) = I<sub>max</sub> · (1 − e<sup>−t/τ</sup>)
+                        </div>
+                        <div class="formula-vars"
+                            style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06);">
+                            <span style="color:var(--yellow);">I<sub>max</sub> = <span id="v-Imax">0.632</span> A</span>
+                            &nbsp;·&nbsp;
+                            <span style="color:var(--purple);">τ = <span id="v-tau2">21.1</span> ms</span>
+                        </div>
+                        <div class="formula-result" style="font-size:18px;">
+                            I(t) = <span id="v-It">0.000</span> <span
+                                style="font-size:13px;color:var(--text-dim);">A</span>
+                        </div>
+                    </div>
+
+                    <div
+                        style="margin-top:14px;padding:12px;background:rgba(167,139,250,0.05);border-radius:8px;border:1px solid rgba(167,139,250,0.15);">
+                        <div
+                            style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;">
+                            O que é τ (tau)?</div>
+                        <div style="font-size:12px;color:var(--text-mid);line-height:1.6;">
+                            Após <strong style="color:var(--purple);">1τ</strong> → a corrente atingiu 63% do máximo<br>
+                            Após <strong style="color:var(--purple);">5τ</strong> → a corrente é praticamente o máximo
+                            (99%)
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+     SEÇÃO 3 — FORÇA MAGNÉTICA / JOULE
+══════════════════════════════════════════════════════════════════════════ -->
+    <section class="section" id="s3">
+        <div class="section-divider"></div>
+        <div class="section-inner">
+            <div class="section-eyebrow">
+                <div class="eyebrow-line"></div>Lei de Maxwell · Joule · Seção 03<div class="eyebrow-line"></div>
+            </div>
+            <h2 class="section-title">A <span>Força</span> de Atração</h2>
+            <p class="section-subtitle">A força que o eletroímã exerce sobre um objeto de ferro é proporcional ao
+                quadrado da corrente — e inversamente proporcional ao quadrado da distância (entreferro).</p>
+            <div class="friendly-text">
+                <span class="emoji">🧲</span> <strong>Linguagem simples:</strong>
+                Se você dobrar a corrente, a força fica 4× mais forte (não só 2×)!
+                E se você afastar o objeto ao dobro, a força cai para ¼. É uma relação de quadrado!
+            </div>
+
+            <div class="two-col" style="margin-top:40px;">
+                <div>
+                    <canvas id="forceCanvas"></canvas>
+                    <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;">
+                        <div class="clickable" onclick="popupClick('entreferro',event)"
+                            style="background:rgba(251,191,36,0.07);border:1px solid rgba(251,191,36,0.2);border-radius:8px;padding:7px 14px;font-size:11px;color:var(--yellow);">
+                            🔍 Entreferro (g)</div>
+                        <div class="clickable" onclick="popupClick('armadura',event)"
+                            style="background:rgba(251,113,133,0.07);border:1px solid rgba(251,113,133,0.2);border-radius:8px;padding:7px 14px;font-size:11px;color:var(--rose);">
+                            🔍 Objeto (Armadura)</div>
+                        <div class="clickable" onclick="popupClick('joule',event)"
+                            style="background:rgba(251,146,60,0.07);border:1px solid rgba(251,146,60,0.2);border-radius:8px;padding:7px 14px;font-size:11px;color:var(--orange);">
+                            🔍 Efeito Joule</div>
+                    </div>
+                </div>
+
+                <div class="glass" style="padding:24px;">
+                    <div style="margin-bottom:24px;text-align:center;">
+                        <div class="force-meter"><span id="v-Force">0.0</span><span class="unit"> N</span></div>
+                        <div style="font-size:11px;color:var(--text-dim);margin-top:6px;">Força de Atração Magnética
+                        </div>
+                    </div>
+
+                    <div class="ctrl-row">
+                        <div class="ctrl-label"><span>Corrente (I)</span><span class="ctrl-val" id="v-I3">0.00 A</span>
+                        </div>
+                        <input type="range" class="ctrl-slider yellow" id="sl-I3" min="0" max="5" step="0.01"
+                            value="0.632">
+                    </div>
+                    <div class="ctrl-row">
+                        <div class="ctrl-label"><span>Espiras (N)</span><span class="ctrl-val" id="v-N3">500 esp</span>
+                        </div>
+                        <input type="range" class="ctrl-slider" id="sl-N3" min="50" max="1000" step="10" value="500">
+                    </div>
+                    <div class="ctrl-row">
+                        <div class="ctrl-label"><span>Entreferro (g)</span><span class="ctrl-val" id="v-G3">0.5
+                                mm</span></div>
+                        <input type="range" class="ctrl-slider" id="sl-G3" min="0.1" max="10" step="0.1" value="0.5">
+                    </div>
+
+                    <div class="formula-box" style="margin-top:8px;">
+                        <div class="formula-label">Força de Maxwell</div>
+                        <div style="font-size:14px;">F = μ₀ · (N·I)² · A / (2·g²)</div>
+                        <div class="formula-vars">μ₀ = 4π×10⁻⁷ T·m/A · A = 0.01 m² (área do núcleo)</div>
+                    </div>
+
+                    <div style="margin-top:14px;">
+                        <div
+                            style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:8px;">
+                            Dissipação Térmica — Efeito Joule</div>
+                        <div class="formula-box"
+                            style="background:rgba(251,146,60,0.06);border-color:rgba(251,146,60,0.35);color:var(--orange);">
+                            <div style="font-size:14px;">P = R · I²</div>
+                            <div class="formula-result" style="color:var(--orange);font-size:18px;">
+                                <span id="v-Joule">0.0</span> <span style="font-size:13px;color:var(--text-dim);">W
+                                    (calor)</span>
+                            </div>
+                        </div>
+                        <div class="heat-bar-track" style="margin-top:10px;">
+                            <div class="heat-bar-fill" id="heatBar" style="width:0%"></div>
+                        </div>
+                        <div style="font-size:10px;color:var(--text-dim);margin-top:4px;text-align:right;"
+                            id="heatLabel">0% da potência máxima</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+     SEÇÃO 4 — EXPERIMENTO REAL
+══════════════════════════════════════════════════════════════════════════ -->
+    <section class="section" id="s4">
+        <div class="section-divider"></div>
+        <div class="section-inner">
+            <div class="section-eyebrow">
+                <div class="eyebrow-line"></div>Validação Experimental · Seção 04<div class="eyebrow-line"></div>
+            </div>
+            <h2 class="section-title">O <span>Experimento Real</span></h2>
+            <p class="section-subtitle">Tudo que você viu até aqui foi testado fisicamente na bancada do IF Goiano,
+                usando a fonte ICEL PS-3005 e o estator real de um freio de equipamento de Raio-X.</p>
+
+            <div class="two-col" style="margin-top:40px;">
+                <!-- LEFT: bench -->
+                <div>
+                    <canvas id="benchCanvas"></canvas>
+                    <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;">
+                        <div class="clickable" onclick="popupClick('icel',event)"
+                            style="background:rgba(34,211,238,0.07);border:1px solid var(--border);border-radius:8px;padding:7px 14px;font-size:11px;color:var(--cyan);">
+                            🔍 Fonte ICEL PS-3005</div>
+                        <div class="clickable" onclick="popupClick('estator',event)"
+                            style="background:rgba(251,191,36,0.07);border:1px solid rgba(251,191,36,0.2);border-radius:8px;padding:7px 14px;font-size:11px;color:var(--yellow);">
+                            🔍 Estator (Eletroímã)</div>
+                        <div class="clickable" onclick="popupClick('carga',event)"
+                            style="background:rgba(52,211,153,0.07);border:1px solid rgba(52,211,153,0.2);border-radius:8px;padding:7px 14px;font-size:11px;color:var(--green);">
+                            🔍 Massa Ferromagnética</div>
+                    </div>
+                </div>
+
+                <!-- RIGHT: results -->
+                <div>
+                    <div
+                        style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-dim);margin-bottom:14px;">
+                        Clique em cada resultado para ver o cálculo:</div>
+
+                    <div class="result-card validated clickable" onclick="popupClick('res-ohm',event)">
+                        <div class="result-check ok">☑️</div>
+                        <div>
+                            <div class="rc-title">Lei de Ohm Validada</div>
+                            <div class="rc-eq">R = V / I = 24 / I</div>
+                            <div class="rc-val">I = 0.632 A · R = 38 Ω</div>
+                        </div>
+                    </div>
+                    <div class="result-card validated clickable" onclick="popupClick('res-mmf',event)">
+                        <div class="result-check ok">☑️</div>
+                        <div>
+                            <div class="rc-title">Força Magnetomotriz</div>
+                            <div class="rc-eq">ℱ = N · I = 500 × 0.632</div>
+                            <div class="rc-val">ℱ = 316 A·espiras</div>
+                        </div>
+                    </div>
+                    <div class="result-card validated clickable" onclick="popupClick('res-joule',event)">
+                        <div class="result-check ok">☑️</div>
+                        <div>
+                            <div class="rc-title">Efeito Joule (aquecimento)</div>
+                            <div class="rc-eq">P = R · I² = 38 × (0.632)²</div>
+                            <div class="rc-val">P = 15.2 W</div>
+                        </div>
+                    </div>
+                    <div class="result-card validated clickable" onclick="popupClick('res-tau',event)">
+                        <div class="result-check ok">☑️</div>
+                        <div>
+                            <div class="rc-title">Tempo de Resposta (τ)</div>
+                            <div class="rc-eq">τ = L / R = 0.8 / 38</div>
+                            <div class="rc-val">τ = 21.1 ms</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+     SEÇÃO 5 — REFERÊNCIAS
+══════════════════════════════════════════════════════════════════════════ -->
+    <section class="section" id="s5">
+        <div class="section-divider"></div>
+        <div class="section-inner" style="max-width:760px;">
+            <div class="section-eyebrow">
+                <div class="eyebrow-line"></div>Referências · Seção 05<div class="eyebrow-line"></div>
+            </div>
+            <h2 class="section-title">Referências <span>Bibliográficas</span></h2>
+
+            <div class="ref-card">
+                <div class="ref-icon">📘</div>
+                <div>
+                    <div class="ref-title">Fundamentos de Física, Volume 3: Eletromagnetismo</div>
+                    <div class="ref-author">HALLIDAY, D.; RESNICK, R.; WALKER, J. — 10ª ed. Rio de Janeiro: LTC, 2016.
+                    </div>
+                </div>
+            </div>
+            <div class="ref-card">
+                <div class="ref-icon">📗</div>
+                <div>
+                    <div class="ref-title">Elementos de Eletromagnetismo</div>
+                    <div class="ref-author">SADIKU, M. N. O. — 5ª ed. Porto Alegre: Bookman, 2012.</div>
+                </div>
+            </div>
+
+            <div class="team-card">
+                <div class="team-left">
+                    <div class="t-inst">Instituto Federal Goiano · Física Eletromagnetismo</div>
+                    <div class="t-names">Mateus de Paula Rezende &amp; Felipe Gabriel Rodrigues</div>
+                    <div class="t-sub">Relatório de Atividade Prática · Demonstração de Eletromagnetismo Industrial
+                    </div>
+                </div>
+                <a href="digital_twin_freio_eletromagn_tico.html" class="nav-link" target="_blank"
+                    style="white-space:nowrap;">
+                    Ver Digital Twin Industrial ↗
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+     JAVASCRIPT ENGINE
+══════════════════════════════════════════════════════════════════════════ -->
+    <script>
+        'use strict';
+
+        // ═══════════════════════════════════════════════════════════════════════
+        //  POPUP DATABASE — todos os componentes e conceitos
+        // ═══════════════════════════════════════════════════════════════════════
+        const POPUP_DB = {
+            bobina: {
+                title: 'Bobina Solenoide',
+                sub: 'Fio de Cobre Esmaltado',
+                mat: 'Cobre (Cu) AWG 24 · Esmaltado para isolamento elétrico',
+                param: 'R ≈ 38 Ω · L ≈ 0.8 H · N ≈ 500 espiras',
+                fn: 'Cada volta do fio cria um pequeno campo magnético. Juntos, todos empurram na mesma direção e somam os campos, criando um ímã poderoso.',
+                simple: '🔌 É como várias formigas carregando um grão de areia — cada uma faz pouco, mas juntas fazem muito!'
+            },
+            nucleo: {
+                title: 'Núcleo Ferromagnético',
+                sub: 'Aço Laminado de Alta Permeabilidade',
+                mat: 'Aço Silício Laminado · μᵣ ≈ 2000 (vs. 1 para o ar)',
+                param: 'Relutância: ℛ = ℓ / (μ·A) [A·e/Wb]',
+                fn: 'O núcleo de ferro "conduz" o campo magnético como um fio conduz elétrons. Ele amplifica e concentra o campo gerado pela bobina.',
+                simple: '🧲 O ferro é um "autoestrada" para o campo magnético. O ar é um "caminho de terra" — muito mais difícil de atravessar!'
+            },
+            campo: {
+                title: 'Campo Magnético (B)',
+                sub: 'Linhas de Força Magnética',
+                mat: 'Campo invisível · unidade: Tesla (T)',
+                param: 'B = μ₀·μᵣ·N·I / ℓ · linhas saem do polo N, entram no polo S',
+                fn: 'O campo magnético é a "zona de influência" do eletroímã — a região onde ele consegue atrair objetos. Ele existe no espaço ao redor da bobina.',
+                simple: '🌀 Imagine o campo como ondas saindo de uma pedra jogada na água — mas em vez de molhar, elas atraem metais!'
+            },
+            fonte: {
+                title: 'Fonte de Alimentação DC',
+                sub: 'ICEL Manaus PS-3005 (0–32V · 0–5A)',
+                mat: 'Fonte Chaveada DC · Tensão regulada',
+                param: 'V = tensão (Volts) · I = corrente (Ampères) · P = V·I (Watts)',
+                fn: 'Fornece energia elétrica controlada para a bobina. A tensão (V) "empurra" os elétrons, a resistência (R) limita a corrente: I = V/R.',
+                simple: '🔋 A fonte é a caixa d\'água — a tensão é a altura da caixa, a corrente é a quantidade de água que flui pelo cano!'
+            },
+            resistor: {
+                title: 'Resistência da Bobina (R)',
+                sub: 'Resistência Ôhmica do Fio de Cobre',
+                mat: 'Resistência elétrica intrínseca do fio de cobre · R ≈ 38 Ω',
+                param: 'Lei de Ohm: V = R · I · Efeito Joule: P = R · I²',
+                fn: 'O fio de cobre não é perfeito — ele "resiste" um pouco à passagem dos elétrons. Essa resistência limita a corrente e gera calor (Efeito Joule).',
+                simple: '🚰 É como um cano estreito numa mangueira — quanto mais estreito (R maior), menos água passa (I menor)!'
+            },
+            indutor: {
+                title: 'Indutância (L)',
+                sub: 'Propriedade de "Memória" da Bobina',
+                mat: 'L ≈ 0.8 Henrys · depende de N², área e comprimento',
+                param: 'τ = L/R = 21ms · dI/dt = (V − R·I) / L',
+                fn: 'A indutância faz a bobina "lembrar" do campo magnético anterior. Ela se opõe a mudanças rápidas de corrente — por isso a corrente sobe devagar.',
+                simple: '😴 A bobina é teimosa — não quer sair do estado atual! Quanto maior L, mais teimosa ela é.'
+            },
+            entreferro: {
+                title: 'Entreferro (g)',
+                sub: 'Espaço de Ar entre Eletroímã e Objeto',
+                mat: 'Ar · μᵣ = 1 (baixíssima permeabilidade)',
+                param: 'F ∝ 1/g² — se dobrar g, a força cai para ¼!',
+                fn: 'É o espaço entre o eletroímã e o objeto de metal. O ar "resiste" muito ao campo magnético — quanto menor o espaço, maior a força.',
+                simple: '📏 É como tentar pegar algo com a mão — mais perto = mais fácil. Dobrar a distância = 4× mais difícil (não 2×)!'
+            },
+            armadura: {
+                title: 'Armadura / Objeto Ferromagnético',
+                sub: 'Massa de Aço ou Ferro Atraída',
+                mat: 'Aço Carbono · Fe · Ferramenta metálica · Cadeado',
+                param: 'F = μ₀(N·I)²A/(2g²) em Newtons',
+                fn: 'Qualquer objeto de ferro ou aço é atraído pelo eletroímã quando há corrente. Sem corrente, sem atração — o eletroímã pode ser ligado e desligado!',
+                simple: '🔩 Por isso eletroímãs são usados em ferro-velhos: ligou, agarrou o carro; desligou, largou o carro!'
+            },
+            joule: {
+                title: 'Efeito Joule — Calor Elétrico',
+                sub: 'Dissipação de Energia Térmica',
+                mat: 'Energia elétrica → calor térmico · unidade: Watts (W)',
+                param: 'P = R · I² · [James Prescott Joule, 1841]',
+                fn: 'Toda corrente elétrica numa resistência gera calor. No eletroímã, isso aquece a carcaça durante o uso. É por isso que equipamentos industriais precisam de resfriamento.',
+                simple: '🌡️ É o mesmo princípio que aquece a resistência do chuveiro: corrente + resistência = calor!'
+            },
+            icel: {
+                title: 'Fonte ICEL Manaus PS-3005',
+                sub: 'Fonte de Bancada DC Chaveada',
+                mat: 'Saída: 0–32V · 0–5A · Display digital de 4 dígitos',
+                param: 'Permite monitorar V e I simultaneamente → valida R = V/I',
+                fn: 'A fonte usada no experimento permite ajustar a tensão com precisão e ler a corrente em tempo real. Com esses dois valores, calculamos a resistência da bobina sem nenhum outro instrumento.',
+                simple: '📟 O display da fonte mostrou V = 24V e I = 0.632A → R = 24/0.632 = 38Ω. Física funcionando ao vivo!'
+            },
+            estator: {
+                title: 'Estator do Freio (Eletroímã Real)',
+                sub: 'Componente Industrial de Equipamento de Raio-X',
+                mat: 'Aço SAE + Bobina Cu 500 espiras + Carcaça Metálica',
+                param: 'V_nom = 24V · R = 38Ω · L = 0.8H · N ≈ 500 espiras',
+                fn: 'O eletroímã real usado no experimento é o estator de um freio de uma máquina de Raio-X industrial. Quando energizado, trava a mesa de exame com força suficiente para segurar dezenas de quilos.',
+                simple: '🏥 Na vida real, esse eletroímã garante que a mesa do Raio-X fica absolutamente parada durante o exame — se movesse, a imagem ficaria borrada!'
+            },
+            carga: {
+                title: 'Massa Ferromagnética (Carga de Teste)',
+                sub: 'Ferramenta de Aço · Bloco de Ferro · Cadeado',
+                mat: 'Ferro ou Aço · Alta permeabilidade magnética',
+                param: 'Peso variado · Demonstra a força de retenção do eletroímã',
+                fn: 'Usada no experimento para demonstrar fisicamente a força do campo. Com corrente zero, o objeto cai. Com corrente máxima, fica suspenso — validando a relação F = N·I ao vivo.',
+                simple: '🔒 Com o eletroímã ligado: o cadeado gruda. Com o eletroímã desligado: o cadeado cai. Simples assim!'
+            },
+            'res-ohm': {
+                title: 'Lei de Ohm Validada',
+                sub: 'Georg Simon Ohm — 1827',
+                mat: 'Princípio: V = R · I (tensão = resistência × corrente)',
+                param: 'V = 24V · I = 0.632A → R = 24/0.632 = 38.0 Ω',
+                fn: 'Com a fonte ICEL mostrando V=24V e I=0.632A, calculamos R = V/I = 38Ω. Isso confirma que a bobina se comporta como um resistor ôhmico em regime permanente (corrente contínua estável).',
+                simple: '📐 Lei de Ohm é como: Tensão é o empurrão, Corrente é o que corre, Resistência é o que atrapalha. Empurrão = (o que atrapalha) × (o que corre).'
+            },
+            'res-mmf': {
+                title: 'Força Magnetomotriz Medida',
+                sub: 'Lei de Ampère — ℱ = N·I',
+                mat: 'Resultado: ℱ = 316 A·espiras (Ampere-espiras)',
+                param: 'N = 500 espiras · I = 0.632A → ℱ = 500 × 0.632 = 316',
+                fn: 'A FMM é a "força de condução" do fluxo magnético pelo circuito. Com 316 A·e, o eletroímã gera campo suficiente para travar um braço articulado de dezenas de quilos durante a emissão de raios X.',
+                simple: '💪 316 trabalhadores (A·espiras) empurrando o campo magnético ao mesmo tempo. É muita força!'
+            },
+            'res-joule': {
+                title: 'Efeito Joule Observado',
+                sub: 'P = R · I² — James Prescott Joule, 1841',
+                mat: 'P = 38 × (0.632)² = 38 × 0.3994 = 15.2 W',
+                param: 'Energia dissipada como calor: 15.2 W = suficiente para aquecer o componente',
+                fn: 'Após alguns minutos operando, a carcaça do eletroímã aqueceu visivelmente. Isso é o Efeito Joule em ação: os elétrons colidindo com os átomos do cobre e gerando calor. No total, 15.2 Watts são dissiados como calor.',
+                simple: '🌡️ 15.2 Watts de calor é como deixar uma lâmpada de LED acesa por dentro do eletroímã. Dá para sentir no toque!'
+            },
+            'res-tau': {
+                title: 'Constante de Tempo (τ)',
+                sub: 'τ = L/R — Tempo de Resposta do Circuito RL',
+                mat: 'τ = 0.8 / 38 = 0.021 s = 21.1 milissegundos',
+                param: 'Em 1τ: 63% da corrente. Em 5τ (105ms): praticamente 100%',
+                fn: 'O atraso de 21ms foi observado no simulador: ao ligar a fonte, a corrente não sobe instantaneamente. O simulador plotou a curva I(t) = (V/R)(1-e^{-t/τ}), confirmando o comportamento teórico.',
+                simple: '⏱️ 21ms é muito rápido para nós, mas para um circuito eletrônico é perceptível! É o tempo que a bobina leva para "acordar".'
+            },
+        };
+
+        // ═══════════════════════════════════════════════════════════════════════
+        //  POPUP ENGINE
+        // ═══════════════════════════════════════════════════════════════════════
+        const hudEl = document.getElementById('hud');
+        let lastActiveEl = null;
+
+        function popupClick(id, event) {
+            const d = POPUP_DB[id];
+            if (!d) return;
+            if (event) event.stopPropagation();
+
+            document.getElementById('hudTitle').textContent = d.title;
+            document.getElementById('hudSub').textContent = d.sub;
+            document.getElementById('hudMat').textContent = d.mat;
+            document.getElementById('hudParam').textContent = d.param;
+            document.getElementById('hudFn').textContent = d.fn;
+            document.getElementById('hudSimple').textContent = d.simple;
+
+            if (lastActiveEl) lastActiveEl.classList.remove('active-inspect');
+            if (event && event.currentTarget) {
+                lastActiveEl = event.currentTarget;
+                lastActiveEl.classList.add('active-inspect');
+            }
+
+            // Position near click, clamp to viewport
+            if (event) {
+                const pw = 328, ph = 340, mg = 12;
+                let px = event.clientX + 16;
+                let py = event.clientY - 24;
+                if (px + pw > window.innerWidth - mg) px = event.clientX - pw - 12;
+                if (py + ph > window.innerHeight - mg) py = window.innerHeight - ph - mg;
+                if (py < mg) py = mg;
+                hudEl.style.left = px + 'px';
+                hudEl.style.top = py + 'px';
+            }
+            hudEl.classList.add('show');
+        }
+
+        function closeHud() {
+            hudEl.classList.remove('show');
+            if (lastActiveEl) { lastActiveEl.classList.remove('active-inspect'); lastActiveEl = null; }
+        }
+
+        document.addEventListener('click', e => {
+            if (!e.target.closest('.clickable') && !e.target.closest('#hud')) closeHud();
+        });
+
+        // ═══════════════════════════════════════════════════════════════════════
+        //  SCROLL: progress + dots
+        // ═══════════════════════════════════════════════════════════════════════
+        const sections = ['s0', 's1', 's2', 's3', 's4', 's5'];
+        const dots = document.querySelectorAll('.sdot');
+        const pbar = document.getElementById('progressBar');
+
+        function scrollTo(idx) {
+            document.getElementById(sections[idx]).scrollIntoView({ behavior: 'smooth' });
+        }
+
+        window.addEventListener('scroll', () => {
+            const scrolled = window.scrollY;
+            const total = document.body.scrollHeight - window.innerHeight;
+            pbar.style.width = Math.min(100, (scrolled / total) * 100) + '%';
+
+            sections.forEach((sid, i) => {
+                const el = document.getElementById(sid);
+                const top = el.getBoundingClientRect().top;
+                dots[i].classList.toggle('active', top >= -window.innerHeight / 2 && top < window.innerHeight / 2);
+            });
+        });
+
+        // ═══════════════════════════════════════════════════════════════════════
+        //  SECTION 0: HERO PARTICLES
+        // ═══════════════════════════════════════════════════════════════════════
+        (function heroParticles() {
+            const cv = document.getElementById('heroCanvas');
+            const ctx = cv.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+            let w, h;
+
+            function resize() {
+                const r = cv.parentElement.getBoundingClientRect();
+                w = r.width; h = r.height;
+                cv.width = w * dpr; cv.height = h * dpr;
+                cv.style.width = w + 'px'; cv.style.height = h + 'px';
+                ctx.scale(dpr, dpr);
+            }
+            resize();
+            window.addEventListener('resize', resize);
+
+            // Coil path definition
+            const TURNS = 7, COIL_CX = w * 0.75, COIL_CY = h * 0.5, COIL_W = 160, COIL_H = 20;
+
+            // Particles along wire path
+            const particles = Array.from({ length: 40 }, (_, i) => ({
+                t: i / 40,
+                speed: 0.0004 + Math.random() * 0.0003,
+                alpha: 0.4 + Math.random() * 0.6,
+                r: 2.5 + Math.random() * 2,
+            }));
+
+            // Field lines
+            const fieldLines = Array.from({ length: 8 }, (_, i) => ({
+                rx: 55 + i * 28,
+                ry: 14 + i * 8,
+                dash: i * 5,
+                speed: 0.4 + i * 0.1,
+            }));
+
+            let frame = 0;
+
+            function getCoilPos(t) {
+                // t in [0,1] wraps around all turns
+                const totalAngle = t * Math.PI * 2 * TURNS;
+                const turn = Math.floor((totalAngle / (Math.PI * 2)));
+                const phase = totalAngle % (Math.PI * 2);
+
+                // X oscillates left-right over the coil width
+                const x = COIL_CX - COIL_W / 2 + (turn / TURNS) * COIL_W + 16 * Math.sin(phase);
+                const y = COIL_CY + COIL_H * Math.sin(phase) * (phase < Math.PI ? 1 : -1);
+                return { x, y };
+            }
+
+            function draw() {
+                ctx.clearRect(0, 0, w, h);
+
+                // Background subtle gradient
+                const bg = ctx.createRadialGradient(w * 0.75, h * 0.5, 0, w * 0.75, h * 0.5, 300);
+                bg.addColorStop(0, 'rgba(34,211,238,0.04)'); bg.addColorStop(1, 'transparent');
+                ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
+
+                // Draw coil body
+                ctx.save();
+                for (let i = 0; i < TURNS; i++) {
+                    const px = COIL_CX - COIL_W / 2 + (i / TURNS) * COIL_W;
+                    const nx = COIL_CX - COIL_W / 2 + ((i + 1) / TURNS) * COIL_W;
+
+                    // Top arc
+                    ctx.beginPath();
+                    ctx.ellipse(px + (nx - px) / 2, COIL_CY - COIL_H / 2, (nx - px) / 2, COIL_H, 0, Math.PI, 0);
+                    ctx.strokeStyle = 'rgba(180,120,40,0.65)'; ctx.lineWidth = 6; ctx.stroke();
+                    ctx.strokeStyle = 'rgba(217,119,6,0.45)'; ctx.lineWidth = 3; ctx.stroke();
+
+                    // Bottom arc
+                    ctx.beginPath();
+                    ctx.ellipse(px + (nx - px) / 2, COIL_CY + COIL_H / 2, (nx - px) / 2, COIL_H, 0, 0, Math.PI);
+                    ctx.strokeStyle = 'rgba(120,53,15,0.65)'; ctx.lineWidth = 6; ctx.stroke();
+                    ctx.strokeStyle = 'rgba(180,100,20,0.35)'; ctx.lineWidth = 3; ctx.stroke();
+                }
+
+                // Iron core
+                ctx.fillStyle = 'rgba(30,58,95,0.85)';
+                ctx.beginPath(); ctx.roundRect(COIL_CX - COIL_W / 2 - 20, COIL_CY - 9, COIL_W + 40, 18, 4); ctx.fill();
+                ctx.strokeStyle = 'rgba(100,160,220,0.3)'; ctx.lineWidth = 1; ctx.stroke();
+                ctx.restore();
+
+                // Field lines
+                frame++;
+                fieldLines.forEach(fl => {
+                    const dash = (fl.dash + frame * fl.speed * 0.4) % 40;
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.ellipse(COIL_CX, COIL_CY, fl.rx, fl.ry, 0, 0, Math.PI * 2);
+                    ctx.strokeStyle = 'rgba(34,211,238,0.25)';
+                    ctx.lineWidth = 1.2;
+                    ctx.setLineDash([6, 8]);
+                    ctx.lineDashOffset = -dash;
+                    ctx.stroke();
+                    ctx.restore();
+                });
+
+                // Electron particles
+                particles.forEach(p => {
+                    p.t = (p.t + p.speed) % 1;
+                    const pos = getCoilPos(p.t);
+                    // glow
+                    const g = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, p.r * 4);
+                    g.addColorStop(0, `rgba(251,191,36,${p.alpha * 0.9})`);
+                    g.addColorStop(1, 'rgba(251,191,36,0)');
+                    ctx.beginPath(); ctx.fillStyle = g; ctx.arc(pos.x, pos.y, p.r * 4, 0, Math.PI * 2); ctx.fill();
+                    // core
+                    ctx.beginPath(); ctx.fillStyle = `rgba(251,191,36,${p.alpha})`; ctx.arc(pos.x, pos.y, p.r, 0, Math.PI * 2); ctx.fill();
+                });
+
+                requestAnimationFrame(draw);
+            }
+            draw();
+        })();
+
+        // ═══════════════════════════════════════════════════════════════════════
+        //  SECTION 1: COIL CANVAS  (ℱ = N·I)
+        // ═══════════════════════════════════════════════════════════════════════
+        (function coilSection() {
+            const cv = document.getElementById('coilCanvas');
+            const ctx = cv.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+            const SZ = 420;
+            cv.width = cv.height = SZ * dpr;
+            ctx.scale(dpr, dpr);
+
+            const slI = document.getElementById('sl-I1');
+            const slN = document.getElementById('sl-N1');
+
+            function readValues() {
+                return { I: parseFloat(slI.value), N: parseInt(slN.value) };
+            }
+
+            function updateLabels() {
+                const { I, N } = readValues();
+                document.getElementById('v-I1').textContent = I.toFixed(2) + ' A';
+                document.getElementById('v-N1').textContent = N + ' esp';
+                document.getElementById('v-MMF').textContent = (N * I).toFixed(0);
+            }
+
+            slI.addEventListener('input', updateLabels);
+            slN.addEventListener('input', updateLabels);
+            updateLabels();
+
+            let dash = 0, t = 0;
+
+            function draw() {
+                const { I, N } = readValues();
+                const cx = SZ / 2, cy = SZ / 2;
+                const alpha = I / 5;
+                ctx.clearRect(0, 0, SZ, SZ);
+
+                // background
+                ctx.fillStyle = '#060d1a'; ctx.fillRect(0, 0, SZ, SZ);
+
+                // field lines (ellipses)
+                const numLines = Math.min(8, Math.max(1, Math.round(alpha * 8)));
+                for (let i = 0; i < numLines; i++) {
+                    const rx = 50 + i * 22, ry = 14 + i * 8;
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+                    ctx.strokeStyle = `rgba(34,211,238,${0.5 * alpha * (1 - i * 0.08)})`;
+                    ctx.lineWidth = 1.5;
+                    ctx.setLineDash([6, 8]);
+                    ctx.lineDashOffset = -dash;
+                    ctx.stroke();
+                    ctx.restore();
+                }
+
+                // Iron core
+                ctx.fillStyle = '#1a3a5f';
+                ctx.beginPath(); ctx.roundRect(cx - 130, cy - 10, 260, 20, 4); ctx.fill();
+                ctx.strokeStyle = 'rgba(100,160,220,0.4)'; ctx.lineWidth = 1; ctx.stroke();
+                // Core highlight
+                ctx.fillStyle = 'rgba(255,255,255,0.05)';
+                ctx.fillRect(cx - 128, cy - 8, 256, 4);
+
+                // Coil turns
+                const TURNS = Math.min(12, Math.max(3, Math.round(N / 80)));
+                const coilW = 240, coilH = 18;
+                const cx0 = cx - coilW / 2;
+                for (let i = 0; i < TURNS; i++) {
+                    const px = cx0 + (i / TURNS) * coilW;
+                    const nxt = cx0 + ((i + 1) / TURNS) * coilW;
+                    const mx = (px + nxt) / 2, rw = (nxt - px) / 2;
+
+                    ctx.beginPath();
+                    ctx.ellipse(mx, cy - coilH / 2, rw, coilH, 0, Math.PI, 0, true);
+                    ctx.strokeStyle = '#d97706'; ctx.lineWidth = 5; ctx.setLineDash([]); ctx.stroke();
+                    ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2; ctx.stroke();
+
+                    ctx.beginPath();
+                    ctx.ellipse(mx, cy + coilH / 2, rw, coilH, 0, 0, Math.PI, true);
+                    ctx.strokeStyle = '#78350f'; ctx.lineWidth = 5; ctx.stroke();
+                    ctx.strokeStyle = '#b45309'; ctx.lineWidth = 2; ctx.stroke();
+                }
+
+                // Electron particles
+                t = (t + 0.012) % 1;
+                for (let p = 0; p < 5; p++) {
+                    const pt = (t + p * 0.2) % 1;
+                    const angle = pt * Math.PI * 2 * TURNS;
+                    const turn = Math.floor(angle / (Math.PI * 2));
+                    const phase = angle % (Math.PI * 2);
+                    const ex = cx0 + (turn / TURNS) * coilW + (240 / TURNS / 2) * Math.sin(phase);
+                    const ey = cy + 18 * Math.sin(phase) * (phase < Math.PI ? 1 : -0.8);
+                    const ga = ctx.createRadialGradient(ex, ey, 0, ex, ey, 10);
+                    ga.addColorStop(0, `rgba(251,191,36,${alpha * 0.9})`);
+                    ga.addColorStop(1, 'rgba(251,191,36,0)');
+                    ctx.beginPath(); ctx.fillStyle = ga; ctx.arc(ex, ey, 10, 0, Math.PI * 2); ctx.fill();
+                    if (alpha > 0.05) {
+                        ctx.beginPath(); ctx.fillStyle = `rgba(251,191,36,${alpha})`; ctx.arc(ex, ey, 3, 0, Math.PI * 2); ctx.fill();
+                    }
+                }
+
+                // Arrows (polarity N/S)
+                if (alpha > 0.05) {
+                    drawArrow(ctx, cx - 140, cy, cx - 190, cy, `rgba(34,211,238,${alpha})`, 'N');
+                    drawArrow(ctx, cx + 140, cy, cx + 190, cy, `rgba(251,113,133,${alpha})`, 'S');
+                }
+
+                // Labels
+                ctx.font = '700 10px JetBrains Mono,monospace';
+                ctx.fillStyle = 'rgba(251,191,36,0.55)';
+                ctx.textAlign = 'center';
+                ctx.fillText(`N = ${N} espiras`, cx, SZ - 18);
+
+                dash = (dash + 0.5) % 40;
+                requestAnimationFrame(draw);
+            }
+            draw();
+
+            function drawArrow(ctx, x1, y1, x2, y2, color, label) {
+                ctx.save();
+                ctx.strokeStyle = color; ctx.lineWidth = 2;
+                ctx.setLineDash([]); ctx.beginPath();
+                ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+                const dir = x2 > x1 ? 1 : -1;
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.moveTo(x2, y2); ctx.lineTo(x2 - dir * 10, y2 - 5); ctx.lineTo(x2 - dir * 10, y2 + 5);
+                ctx.closePath(); ctx.fill();
+                ctx.font = '700 13px Inter,sans-serif';
+                ctx.fillText(label, x2 + dir * 14, y2 + 5);
+                ctx.restore();
+            }
+        })();
+
+        // ═══════════════════════════════════════════════════════════════════════
+        //  SECTION 2: RL CIRCUIT
+        // ═══════════════════════════════════════════════════════════════════════
+        (function rlSection() {
+            const circCv = document.getElementById('circuitCanvas');
+            const circCtx = circCv.getContext('2d');
+            const chartCv = document.getElementById('rlChart');
+            const chartCtx = chartCv.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+
+            function resizeCvs() {
+                [circCv, chartCv].forEach(cv => {
+                    const r = cv.getBoundingClientRect();
+                    cv.width = r.width * dpr; cv.height = r.height * dpr;
+                });
+                circCtx.scale(dpr, dpr);
+                chartCtx.scale(dpr, dpr);
+            }
+            resizeCvs();
+            window.addEventListener('resize', resizeCvs);
+
+            let on = false;
+            let tSim = 0, I = 0;
+            let history = [];
+            let lastTs = performance.now();
+
+            window.toggleRL = function () {
+                on = !on;
+                tSim = 0;
+                const btn = document.getElementById('btnToggle');
+                btn.textContent = on ? '⏹ Desliga a Fonte' : '▶ Liga a Fonte';
+                btn.className = 'tog-btn ' + (on ? 'tog-off' : 'tog-on');
+                history = [];
+            };
+
+            window.rlUpdate = function () {
+                const V = parseFloat(document.getElementById('sl-V2').value);
+                const R = parseFloat(document.getElementById('sl-R2').value);
+                const L = parseFloat(document.getElementById('sl-L2').value);
+                document.getElementById('v-V2').textContent = V.toFixed(1) + ' V';
+                document.getElementById('v-R2').textContent = R.toFixed(1) + ' Ω';
+                document.getElementById('v-L2').textContent = L.toFixed(2) + ' H';
+                const tau = (L / R * 1000).toFixed(1);
+                document.getElementById('v-tau').textContent = tau + ' ms';
+                document.getElementById('v-tau2').textContent = tau + ' ms';
+                document.getElementById('v-Imax').textContent = (V / R).toFixed(3);
+                tSim = 0; I = 0; history = [];
+            };
+            rlUpdate();
+
+            function drawCircuit(V, R, L, Inow, on) {
+                const cv = circCv;
+                const cw = cv.width / dpr, ch = cv.height / dpr;
+                circCtx.clearRect(0, 0, cw, ch);
+                circCtx.fillStyle = '#06111e'; circCtx.fillRect(0, 0, cw, ch);
+
+                // Grid
+                circCtx.strokeStyle = 'rgba(34,211,238,0.025)'; circCtx.lineWidth = 1;
+                for (let x = 0; x < cw; x += 30) { circCtx.beginPath(); circCtx.moveTo(x, 0); circCtx.lineTo(x, ch); circCtx.stroke(); }
+                for (let y = 0; y < ch; y += 30) { circCtx.beginPath(); circCtx.moveTo(0, y); circCtx.lineTo(cw, y); circCtx.stroke(); }
+
+                const mx = cw / 2, my = ch / 2;
+                const W = 320, H = 140;
+                const x0 = mx - W / 2, x1 = mx + W / 2;
+                const y0 = my - H / 2, y1 = my + H / 2;
+
+                const iAlpha = on ? Math.min(1, Inow / (V / R)) : 0;
+                const wireColor = `rgba(34,211,238,${0.25 + iAlpha * 0.65})`;
+
+                // Wires
+                circCtx.strokeStyle = wireColor; circCtx.lineWidth = 2.5; circCtx.setLineDash([]);
+                circCtx.beginPath();
+                circCtx.moveTo(x0, y0); circCtx.lineTo(x0, my - 18); circCtx.stroke();  // left top segment
+                circCtx.beginPath();
+                circCtx.moveTo(x0, my + 18); circCtx.lineTo(x0, y1); circCtx.stroke(); // left bottom
+                circCtx.beginPath();
+                circCtx.moveTo(x0, y1); circCtx.lineTo(mx - 40, y1); circCtx.stroke();  // bottom left
+                circCtx.beginPath();
+                circCtx.moveTo(mx + 40, y1); circCtx.lineTo(x1, y1); circCtx.stroke();  // bottom right
+                circCtx.beginPath();
+                circCtx.moveTo(x1, y1); circCtx.lineTo(x1, my + 18); circCtx.stroke(); // right bottom
+                circCtx.beginPath();
+                circCtx.moveTo(x1, my - 18); circCtx.lineTo(x1, y0); circCtx.stroke(); // right top
+                circCtx.beginPath();
+                circCtx.moveTo(x1, y0); circCtx.lineTo(mx + 40, y0); circCtx.stroke(); // top right
+                circCtx.beginPath();
+                circCtx.moveTo(mx - 40, y0); circCtx.lineTo(x0, y0); circCtx.stroke(); // top left
+
+                // Source (left side)
+                drawSource(mx - 50, y0, mx + 50, y0, V, on);
+
+                // Resistor (right side)
+                drawResistor(x1, my - 18, x1, my + 18, R);
+
+                // Inductor (bottom)
+                drawInductor(mx - 40, y1, mx + 40, y1, L);
+
+                // Current label
+                if (on && Inow > 0.005) {
+                    circCtx.fillStyle = `rgba(251,191,36,${iAlpha})`;
+                    circCtx.font = '700 12px JetBrains Mono,monospace';
+                    circCtx.textAlign = 'center';
+                    circCtx.fillText(`I = ${Inow.toFixed(3)} A`, mx, my - H / 2 - 12);
+                }
+            }
+
+            function drawSource(x0, y, x1, yvoid, V, on) {
+                const mx = (x0 + x1) / 2;
+                circCtx.save();
+                circCtx.fillStyle = on ? 'rgba(34,211,238,0.12)' : 'rgba(255,255,255,0.04)';
+                circCtx.beginPath(); circCtx.roundRect(x0, y - 16, x1 - x0, 32, 6); circCtx.fill();
+                circCtx.strokeStyle = on ? 'rgba(34,211,238,0.5)' : 'rgba(255,255,255,0.1)';
+                circCtx.lineWidth = 1.5; circCtx.stroke();
+                circCtx.fillStyle = on ? '#22d3ee' : '#4d5f73';
+                circCtx.font = '700 11px JetBrains Mono,monospace'; circCtx.textAlign = 'center';
+                circCtx.fillText(V.toFixed(0) + 'V', mx, y + 4);
+                circCtx.font = '600 8px Inter,sans-serif'; circCtx.fillStyle = '#4d5f73';
+                circCtx.fillText('FONTE', mx, y + 15);
+                circCtx.restore();
+            }
+
+            function drawResistor(x, y0, x2, y1) {
+                const my = (y0 + y1) / 2;
+                circCtx.save();
+                circCtx.fillStyle = 'rgba(251,113,133,0.08)';
+                circCtx.beginPath(); circCtx.roundRect(x - 22, my - 28, 44, 56, 6); circCtx.fill();
+                circCtx.strokeStyle = 'rgba(251,113,133,0.4)'; circCtx.lineWidth = 1.5; circCtx.stroke();
+                // Zigzag
+                const pts = [my - 18, my - 10, my, my + 10, my + 18];
+                circCtx.beginPath(); circCtx.moveTo(x, y0);
+                pts.forEach((py, i) => circCtx.lineTo(x + (i % 2 === 0 ? 10 : -10), py));
+                circCtx.lineTo(x, y1);
+                circCtx.strokeStyle = '#fb7185'; circCtx.lineWidth = 2; circCtx.stroke();
+                circCtx.fillStyle = '#fb7185'; circCtx.font = '700 10px JetBrains Mono'; circCtx.textAlign = 'center';
+                circCtx.fillText('R', x + 32, my); circCtx.restore();
+            }
+
+            function drawInductor(x0, y, x1, y2) {
+                const mx = (x0 + x1) / 2;
+                circCtx.save();
+                circCtx.fillStyle = 'rgba(167,139,250,0.08)';
+                circCtx.beginPath(); circCtx.roundRect(x0 - 4, y - 20, x1 - x0 + 8, 40, 6); circCtx.fill();
+                circCtx.strokeStyle = 'rgba(167,139,250,0.4)'; circCtx.lineWidth = 1.5; circCtx.stroke();
+                // Bumps
+                const bumps = 4, bw = (x1 - x0) / bumps;
+                circCtx.beginPath(); circCtx.strokeStyle = '#a78bfa'; circCtx.lineWidth = 2.5;
+                circCtx.moveTo(x0, y);
+                for (let i = 0; i < bumps; i++) {
+                    const bx = x0 + i * bw + bw / 2;
+                    circCtx.bezierCurveTo(x0 + i * bw, y - 12, x0 + i * bw + bw, y - 12, x0 + (i + 1) * bw, y);
+                }
+                circCtx.stroke();
+                circCtx.fillStyle = '#a78bfa'; circCtx.font = '700 10px JetBrains Mono'; circCtx.textAlign = 'center';
+                circCtx.fillText('L', mx, y + 17); circCtx.restore();
+            }
+
+            function drawChart(V, R, L, tNow) {
+                const cw = chartCv.width / dpr, ch = chartCv.height / dpr;
+                chartCtx.clearRect(0, 0, cw, ch);
+                chartCtx.fillStyle = '#04090f'; chartCtx.fillRect(0, 0, cw, ch);
+                const pad = 12;
+                const Imax = V / R;
+                const tau = L / R;
+
+                // Grid
+                chartCtx.strokeStyle = 'rgba(255,255,255,0.04)'; chartCtx.lineWidth = 1;
+                for (let i = 0; i < 4; i++) {
+                    const gy = pad + (i / 3) * (ch - pad * 2);
+                    chartCtx.beginPath(); chartCtx.moveTo(pad, gy); chartCtx.lineTo(cw - pad, gy); chartCtx.stroke();
+                }
+
+                // I(t) curve
+                const pts = 200;
+                const tMax = tau * 6;
+                chartCtx.beginPath(); chartCtx.strokeStyle = '#22d3ee'; chartCtx.lineWidth = 2.5; chartCtx.lineJoin = 'round';
+                for (let i = 0; i <= pts; i++) {
+                    const tt = (i / pts) * tMax;
+                    const It = Imax * (1 - Math.exp(-tt / tau));
+                    const x = pad + (tt / tMax) * (cw - pad * 2);
+                    const y = ch - pad - (It / Imax) * (ch - pad * 2);
+                    if (i === 0) chartCtx.moveTo(x, y); else chartCtx.lineTo(x, y);
+                }
+                chartCtx.stroke();
+
+                // Current time indicator
+                if (tNow > 0 && tNow < tMax) {
+                    const It = Imax * (1 - Math.exp(-tNow / tau));
+                    const cx = pad + (tNow / tMax) * (cw - pad * 2);
+                    const cy2 = ch - pad - (It / Imax) * (ch - pad * 2);
+                    chartCtx.beginPath(); chartCtx.setLineDash([4, 4]);
+                    chartCtx.strokeStyle = 'rgba(251,191,36,0.4)'; chartCtx.lineWidth = 1;
+                    chartCtx.moveTo(cx, ch - pad); chartCtx.lineTo(cx, cy2); chartCtx.stroke();
+                    chartCtx.setLineDash([]);
+                    chartCtx.beginPath(); chartCtx.fillStyle = '#fbbf24';
+                    chartCtx.arc(cx, cy2, 5, 0, Math.PI * 2); chartCtx.fill();
+                }
+
+                // τ marker
+                const tauX = pad + (tau / tMax) * (cw - pad * 2);
+                chartCtx.strokeStyle = 'rgba(167,139,250,0.5)'; chartCtx.lineWidth = 1;
+                chartCtx.setLineDash([3, 4]);
+                chartCtx.beginPath(); chartCtx.moveTo(tauX, pad); chartCtx.lineTo(tauX, ch - pad); chartCtx.stroke();
+                chartCtx.setLineDash([]);
+                chartCtx.fillStyle = 'rgba(167,139,250,0.8)'; chartCtx.font = '700 9px JetBrains Mono';
+                chartCtx.textAlign = 'left'; chartCtx.fillText('τ', tauX + 4, pad + 12);
+
+                // Labels
+                chartCtx.fillStyle = 'rgba(77,95,115,0.7)'; chartCtx.font = '9px JetBrains Mono'; chartCtx.textAlign = 'left';
+                chartCtx.fillText(`I(t) = (V/R)(1−e^{−t/τ})`, pad + 4, ch - pad - 4);
+                chartCtx.textAlign = 'right';
+                chartCtx.fillText(`I_max=${Imax.toFixed(3)}A`, cw - pad - 4, pad + 12);
+            }
+
+            function loop(ts) {
+                const V = parseFloat(document.getElementById('sl-V2').value);
+                const R = parseFloat(document.getElementById('sl-R2').value);
+                const L = parseFloat(document.getElementById('sl-L2').value);
+                const dt = Math.min((ts - lastTs) / 1000, 0.05);
+                lastTs = ts;
+
+                if (on) {
+                    tSim += dt;
+                    I = (V / R) * (1 - Math.exp(-tSim / (L / R)));
+                } else {
+                    tSim = 0; I = 0;
+                }
+
+                document.getElementById('v-It').textContent = I.toFixed(3);
+                drawCircuit(V, R, L, I, on);
+                drawChart(V, R, L, on ? tSim : 0);
+                requestAnimationFrame(loop);
+            }
+            requestAnimationFrame(loop);
+        })();
+
+        // ═══════════════════════════════════════════════════════════════════════
+        //  SECTION 3: FORCE CANVAS
+        // ═══════════════════════════════════════════════════════════════════════
+        (function forceSection() {
+            const cv = document.getElementById('forceCanvas');
+            const ctx = cv.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+            const SZ = 320;
+            cv.width = SZ * dpr; cv.height = SZ * dpr;
+            cv.style.height = SZ + 'px';
+            ctx.scale(dpr, dpr);
+
+            const mu0 = 4 * Math.PI * 1e-7;
+            const A_core = 0.01; // m²
+
+            function getParams() {
+                return {
+                    I: parseFloat(document.getElementById('sl-I3').value),
+                    N: parseInt(document.getElementById('sl-N3').value),
+                    g: parseFloat(document.getElementById('sl-G3').value) / 1000, // mm → m
+                };
+            }
+
+            function updateReadouts() {
+                const { I, N, g } = getParams();
+                document.getElementById('v-I3').textContent = I.toFixed(2) + ' A';
+                document.getElementById('v-N3').textContent = N + ' esp';
+                document.getElementById('v-G3').textContent = (g * 1000).toFixed(1) + ' mm';
+
+                const F = mu0 * Math.pow(N * I, 2) * A_core / (2 * Math.pow(g, 2));
+                const P = 38 * I * I;
+                const Pmax = 38 * 5 * 5;
+
+                document.getElementById('v-Force').textContent = F.toFixed(1);
+                document.getElementById('v-Joule').textContent = P.toFixed(1);
+                document.getElementById('heatBar').style.width = Math.min(100, (P / Pmax) * 100) + '%';
+                document.getElementById('heatLabel').textContent = Math.round((P / Pmax) * 100) + '% da potência máxima';
+            }
+
+            ['sl-I3', 'sl-N3', 'sl-G3'].forEach(id => document.getElementById(id).addEventListener('input', updateReadouts));
+            updateReadouts();
+
+            let dash = 0;
+            function draw() {
+                const { I, N, g } = getParams();
+                const gMM = g * 1000;
+                ctx.clearRect(0, 0, SZ, SZ);
+                ctx.fillStyle = '#06111e'; ctx.fillRect(0, 0, SZ, SZ);
+
+                const F = mu0 * Math.pow(N * I, 2) * A_core / (2 * Math.pow(g, 2));
+                const Fmax = mu0 * Math.pow(1000 * 5, 2) * A_core / (2 * Math.pow(0.0001, 2));
+                const fNorm = Math.min(1, F / 1000); // normalize for display
+                const alpha = I / 5;
+                const iMag = document.getElementById('s3').getBoundingClientRect();
+
+                // Electromagnet body (left)
+                const emX = 30, emY = SZ / 2 - 55;
+                ctx.fillStyle = '#0e1d34';
+                ctx.beginPath(); ctx.roundRect(emX, emY, 100, 110, 8); ctx.fill();
+                ctx.strokeStyle = `rgba(34,211,238,${0.2 + alpha * 0.5})`; ctx.lineWidth = 1.5; ctx.stroke();
+
+                // Coil on electromagnet
+                for (let i = 0; i < 5; i++) {
+                    const wy = emY + 15 + i * 16;
+                    ctx.beginPath();
+                    ctx.ellipse(emX + 50, wy, 32, 6, 0, 0, Math.PI * 2);
+                    ctx.strokeStyle = '#d97706'; ctx.lineWidth = 3; ctx.setLineDash([]); ctx.stroke();
+                }
+                // Core
+                ctx.fillStyle = 'rgba(30,58,95,0.9)';
+                ctx.fillRect(emX + 38, emY + 5, 24, 100);
+                ctx.strokeStyle = 'rgba(100,160,220,0.3)'; ctx.lineWidth = 1; ctx.stroke();
+
+                // Label N/I
+                ctx.fillStyle = '#22d3ee'; ctx.font = '700 9px JetBrains Mono'; ctx.textAlign = 'center';
+                ctx.fillText(`N=${N}`, emX + 50, emY - 8);
+                ctx.fillStyle = '#fbbf24';
+                ctx.fillText(`I=${I.toFixed(2)}A`, emX + 50, emY - 18);
+
+                // Field lines + gap
+                const poleX = emX + 100;
+                const gWidth = Math.max(6, Math.min(120, gMM * 14));
+
+                // Gap bracket annotation
+                ctx.save();
+                ctx.strokeStyle = 'rgba(251,191,36,0.5)'; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+                ctx.beginPath(); ctx.moveTo(poleX, SZ / 2 - 30); ctx.lineTo(poleX + gWidth, SZ / 2 - 30); ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillStyle = 'rgba(251,191,36,0.7)'; ctx.font = '700 9px JetBrains Mono'; ctx.textAlign = 'center';
+                ctx.fillText(`g = ${gMM.toFixed(1)}mm`, poleX + gWidth / 2, SZ / 2 - 36);
+                ctx.restore();
+
+                // Magnetic force field in gap
+                if (alpha > 0.02) {
+                    for (let fl = 0; fl < 4; fl++) {
+                        const fy = SZ / 2 - 24 + fl * 16;
+                        ctx.save();
+                        ctx.strokeStyle = `rgba(34,211,238,${alpha * 0.55})`;
+                        ctx.lineWidth = 1.2; ctx.setLineDash([4, 6]);
+                        ctx.lineDashOffset = -dash;
+                        ctx.beginPath(); ctx.moveTo(poleX, fy); ctx.lineTo(poleX + gWidth, fy); ctx.stroke();
+                        ctx.restore();
+                    }
+                }
+
+                // Object (armature) — moves based on force
+                const objBaseX = poleX + 6 + gWidth;
+                ctx.fillStyle = `rgba(30,50,80,${0.5 + fNorm * 0.4})`;
+                ctx.beginPath(); ctx.roundRect(objBaseX, SZ / 2 - 50, 70, 100, 6); ctx.fill();
+                ctx.strokeStyle = `rgba(100,140,200,${0.3 + fNorm * 0.5})`; ctx.lineWidth = 1.5;
+                ctx.setLineDash([]); ctx.stroke();
+                // Lining
+                ctx.fillStyle = '#374151';
+                ctx.fillRect(objBaseX, SZ / 2 - 50, 8, 100);
+                // Object label
+                ctx.fillStyle = 'rgba(139,148,158,0.6)'; ctx.font = '700 8px JetBrains Mono'; ctx.textAlign = 'center';
+                ctx.fillText('FERRO', objBaseX + 35, SZ / 2 + 5);
+
+                // Force arrow
+                if (F > 0.1) {
+                    const aLen = Math.min(80, fNorm * 60 + 10);
+                    ctx.save();
+                    ctx.strokeStyle = `rgba(251,113,133,${0.5 + fNorm * 0.5})`; ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.moveTo(objBaseX + 30, SZ / 2); ctx.lineTo(objBaseX + 30 - aLen, SZ / 2); ctx.stroke();
+                    ctx.fillStyle = `rgba(251,113,133,${0.5 + fNorm * 0.5})`;
+                    ctx.beginPath();
+                    ctx.moveTo(objBaseX + 30 - aLen, SZ / 2);
+                    ctx.lineTo(objBaseX + 30 - aLen + 12, SZ / 2 - 6);
+                    ctx.lineTo(objBaseX + 30 - aLen + 12, SZ / 2 + 6);
+                    ctx.closePath(); ctx.fill();
+                    ctx.font = '700 10px JetBrains Mono'; ctx.fillStyle = '#fb7185';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`F=${F.toFixed(1)}N`, objBaseX + 30 - aLen / 2, SZ / 2 - 12);
+                    ctx.restore();
+                }
+
+                dash = (dash + 0.6) % 40;
+                requestAnimationFrame(draw);
+            }
+            draw();
+        })();
+
+        // ═══════════════════════════════════════════════════════════════════════
+        //  SECTION 4: BENCH ILLUSTRATION
+        // ═══════════════════════════════════════════════════════════════════════
+        (function benchSection() {
+            const cv = document.getElementById('benchCanvas');
+            const ctx = cv.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+
+            function resize() {
+                const r = cv.getBoundingClientRect();
+                cv.width = r.width * dpr; cv.height = r.height * dpr;
+                ctx.scale(dpr, dpr);
+            }
+            resize();
+            window.addEventListener('resize', resize);
+
+            let t = 0;
+            function draw() {
+                const cw = cv.width / dpr, ch = cv.height / dpr;
+                ctx.clearRect(0, 0, cw, ch);
+                ctx.fillStyle = '#060d1a'; ctx.fillRect(0, 0, cw, ch);
+
+                // Grid
+                ctx.strokeStyle = 'rgba(34,211,238,0.025)'; ctx.lineWidth = 1;
+                for (let x = 0; x < cw; x += 30) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, ch); ctx.stroke(); }
+                for (let y = 0; y < ch; y += 30) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cw, y); ctx.stroke(); }
+
+                // Table surface
+                ctx.fillStyle = '#0d1829';
+                ctx.beginPath(); ctx.roundRect(20, ch - 30, cw - 40, 12, 3); ctx.fill();
+                ctx.strokeStyle = 'rgba(56,100,160,0.3)'; ctx.lineWidth = 1; ctx.stroke();
+
+                // ICEL PS-3005 (left)
+                const ps = { x: 30, y: ch - 145, w: 120, h: 115 };
+                ctx.fillStyle = '#0f1e35';
+                ctx.beginPath(); ctx.roundRect(ps.x, ps.y, ps.w, ps.h, 6); ctx.fill();
+                ctx.strokeStyle = 'rgba(34,211,238,0.3)'; ctx.lineWidth = 1.5; ctx.stroke();
+                // LCD display
+                ctx.fillStyle = '#001a0a';
+                ctx.beginPath(); ctx.roundRect(ps.x + 10, ps.y + 12, ps.w - 20, 38, 3); ctx.fill();
+                ctx.strokeStyle = 'rgba(0,255,80,0.3)'; ctx.lineWidth = 1; ctx.stroke();
+                // Display numbers
+                ctx.fillStyle = '#00e550'; ctx.font = '700 14px JetBrains Mono'; ctx.textAlign = 'center';
+                ctx.fillText('24.0V', ps.x + ps.w / 2, ps.y + 36);
+                ctx.fillStyle = '#00cc44'; ctx.font = '700 11px JetBrains Mono';
+                ctx.fillText('0.632A', ps.x + ps.w / 2, ps.y + 50);
+                // Knobs
+                [0.3, 0.7].forEach(kx => {
+                    ctx.beginPath();
+                    ctx.arc(ps.x + kx * ps.w, ps.y + ps.h - 22, 10, 0, Math.PI * 2);
+                    ctx.fillStyle = '#1a3a5f'; ctx.fill();
+                    ctx.strokeStyle = 'rgba(34,211,238,0.4)'; ctx.lineWidth = 1.5; ctx.stroke();
+                });
+                // Label
+                ctx.fillStyle = 'rgba(34,211,238,0.6)'; ctx.font = '700 8px JetBrains Mono'; ctx.textAlign = 'center';
+                ctx.fillText('ICEL PS-3005', ps.x + ps.w / 2, ps.y + ps.h - 6);
+                // Terminals
+                ctx.fillStyle = '#fb7185'; ctx.beginPath(); ctx.arc(ps.x + 25, ps.y + ps.h - 38, 5, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#4d5f73'; ctx.beginPath(); ctx.arc(ps.x + 95, ps.y + ps.h - 38, 5, 0, Math.PI * 2); ctx.fill();
+
+                // Cables (banana/jacaré)
+                ctx.save();
+                ctx.strokeStyle = '#dc2626'; ctx.lineWidth = 3; ctx.setLineDash([]);
+                ctx.beginPath(); ctx.moveTo(ps.x + 25, ps.y + ps.h - 38);
+                ctx.bezierCurveTo(ps.x + 80, ps.y + ps.h - 80, cw / 2 - 60, ps.y - 20, cw / 2 - 20, ps.y + 20);
+                ctx.stroke();
+                ctx.strokeStyle = '#1d4ed8';
+                ctx.beginPath(); ctx.moveTo(ps.x + 95, ps.y + ps.h - 38);
+                ctx.bezierCurveTo(ps.x + 140, ps.y + ps.h - 60, cw / 2 + 20, ps.y - 10, cw / 2 + 30, ps.y + 20);
+                ctx.stroke();
+                ctx.restore();
+
+                // Electromagnet (center)
+                const em = { x: cw / 2 - 60, y: ch - 160, w: 120, h: 120 };
+                ctx.fillStyle = '#0c1929';
+                ctx.beginPath(); ctx.roundRect(em.x, em.y, em.w, em.h, 8); ctx.fill();
+                ctx.strokeStyle = 'rgba(251,191,36,0.45)'; ctx.lineWidth = 1.5; ctx.stroke();
+                // Coil layers on electromagnet
+                for (let i = 0; i < 5; i++) {
+                    ctx.beginPath();
+                    ctx.ellipse(em.x + em.w / 2, em.y + 20 + i * 16, 36, 7, 0, 0, Math.PI * 2);
+                    ctx.strokeStyle = '#b45309'; ctx.lineWidth = 4; ctx.setLineDash([]); ctx.stroke();
+                    ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2; ctx.stroke();
+                }
+                // Core
+                ctx.fillStyle = '#1a3a5f';
+                ctx.fillRect(em.x + 50, em.y + 8, 20, 104);
+                ctx.strokeStyle = 'rgba(100,160,220,0.4)'; ctx.lineWidth = 1; ctx.stroke();
+                // Label
+                ctx.fillStyle = 'rgba(251,191,36,0.7)'; ctx.font = '700 8px JetBrains Mono'; ctx.textAlign = 'center';
+                ctx.fillText('ESTATOR', em.x + em.w / 2, em.y - 6);
+                ctx.fillStyle = 'rgba(34,211,238,0.5)'; ctx.font = '700 7px JetBrains Mono';
+                ctx.fillText('500 ESPIRAS · 38Ω', em.x + em.w / 2, em.y + em.h + 12);
+
+                // Magnetic field glow on electromagnet
+                const gPulse = 0.6 + 0.4 * Math.sin(t * 0.05);
+                ctx.shadowColor = '#22d3ee'; ctx.shadowBlur = 14 * gPulse;
+                ctx.strokeStyle = `rgba(34,211,238,${0.25 * gPulse})`;
+                ctx.lineWidth = 1; ctx.setLineDash([4, 6]);
+                for (let fl = 0; fl < 3; fl++) {
+                    ctx.beginPath(); ctx.ellipse(em.x + em.w / 2, em.y + em.h / 2, 50 + fl * 18, 20 + fl * 8, 0, 0, Math.PI * 2); ctx.stroke();
+                }
+                ctx.shadowBlur = 0; ctx.setLineDash([]);
+
+                // Test mass (cadeado) - right
+                const lockX = cw - 110, lockY = ch - 138;
+                ctx.fillStyle = '#1e3a5f';
+                ctx.beginPath(); ctx.roundRect(lockX, lockY, 68, 90, 6); ctx.fill();
+                ctx.strokeStyle = 'rgba(52,211,153,0.45)'; ctx.lineWidth = 1.5; ctx.stroke();
+                // Shackle
+                ctx.beginPath(); ctx.strokeStyle = '#34d399'; ctx.lineWidth = 5;
+                ctx.arc(lockX + 34, lockY + 5, 20, Math.PI, 0); ctx.stroke();
+                ctx.fillStyle = 'rgba(52,211,153,0.5)'; ctx.font = '700 8px JetBrains Mono'; ctx.textAlign = 'center';
+                ctx.fillText('CADEADO', lockX + 34, lockY + 52);
+                ctx.fillStyle = 'rgba(52,211,153,0.4)'; ctx.font = '700 7px JetBrains Mono';
+                ctx.fillText('(MASSA DE TESTE)', lockX + 34, lockY + 65);
+
+                // Small arrow between em and lock
+                const arX = em.x + em.w + 8, arY = ch - 100;
+                ctx.strokeStyle = `rgba(251,113,133,${0.4 + 0.3 * Math.sin(t * 0.07)})`; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(arX, arY); ctx.lineTo(lockX - 8, arY); ctx.stroke();
+                ctx.fillStyle = 'rgba(251,113,133,0.6)'; ctx.font = '700 9px JetBrains Mono'; ctx.textAlign = 'center';
+                ctx.fillText('F', arX + (lockX - arX) / 2, arY - 6);
+
+                // Title
+                ctx.fillStyle = 'rgba(77,95,115,0.5)'; ctx.font = '700 8px JetBrains Mono'; ctx.textAlign = 'left';
+                ctx.fillText('Bancada IF Goiano · Fonte ICEL PS-3005 + Estator Real', 22, 16);
+
+                t++;
+                requestAnimationFrame(draw);
+            }
+            draw();
+        })();
+    </script>
+</body>
+
+</html>
