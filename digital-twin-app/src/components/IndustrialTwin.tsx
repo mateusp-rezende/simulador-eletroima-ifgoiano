@@ -200,7 +200,7 @@ export const IndustrialTwin: React.FC = () => {
     useEffect(() => {
         let animationFrameId: number;
         let lastTime = performance.now();
-        let macroTableHistory: number[] = [];
+        const macroTableHistory: number[] = [];
         let activeFmeaKeys = '';
 
         const resizeObserver = new ResizeObserver(() => {
@@ -243,6 +243,9 @@ export const IndustrialTwin: React.FC = () => {
             if (sys.I < 0) sys.I = 0;
 
             // ── STEP 2: Maxwell force (F ∝ (N·I)² / g²)
+            // Nota de modelagem: forcePercent é um índice dimensional relativo (0 a 1).
+            // A divisão por g_norm (sys.g / DEFAULTS.g) cancela as unidades (mm) e preserva
+            // a relação de quadrado inverso de forma adimensional consistente.
             const MMF = sys.N * sys.I;
             const g_norm = sys.g / DEFAULTS.g;
             const MMF_nom = DEFAULTS.N * (24 / DEFAULTS.R);
@@ -302,7 +305,7 @@ export const IndustrialTwin: React.FC = () => {
 
             // ── FMEA Checks
             const fmeaAlerts: Array<{ type: string; code: string; msg: string }> = [];
-            if (sys.R > 60) fmeaAlerts.push({ type: 'warn', code: 'FMEA-01', msg: `R=${sys.R.toFixed(0)}Ω excessivo — aquecimento Joule. Corrente caiu ${((1 - 24 / sys.R / (24 / DEFAULTS.R)) * 100).toFixed(0)}% · Risco: freio escorregando.` });
+            if (sys.R > 60) fmeaAlerts.push({ type: 'warn', code: 'FMEA-01', msg: `R=${sys.R.toFixed(0)}Ω excessivo — aquecimento Joule. Capacidade máxima de corrente reduzida em ${((1 - 24 / sys.R / (24 / DEFAULTS.R)) * 100).toFixed(0)}% · Risco: freio escorregando.` });
             if (sys.R > 80) fmeaAlerts.push({ type: 'error', code: 'FMEA-02', msg: `CRÍTICO: R=${sys.R.toFixed(0)}Ω · I_max=${(24 / sys.R).toFixed(3)}A insuficiente. Mesa pode se mover com freio "ativo".` });
             if (sys.g > 2.0) fmeaAlerts.push({ type: 'warn', code: 'FMEA-03', msg: `Entreferro g=${sys.g.toFixed(1)}mm — desgaste crítico da lona. Força ÷${((sys.g / DEFAULTS.g) ** 2).toFixed(1)}x vs. nominal.` });
             if (sys.g > 3.5) fmeaAlerts.push({ type: 'error', code: 'FMEA-04', msg: `FALHA MECÂNICA: g=${sys.g.toFixed(1)}mm. Substituição imediata da lona necessária.` });

@@ -22,7 +22,7 @@ const POPUP_DB: Record<string, ComponentInfo> = {
         title: 'Núcleo Ferromagnético',
         sub: 'Aço Laminado de Alta Permeabilidade',
         mat: 'Aço Silício Laminado · μᵣ ≈ 2000 (vs. 1 para o ar)',
-        param: 'Relutância: ℛ = ℓ / (μ·A) [A·e/Wb]',
+        param: 'Relutância: ℛ = ℓ / (μ·A) [A/Wb]',
         fn: 'O núcleo de ferro "conduz" o campo magnético como um fio conduz elétrons. Ele amplifica e concentra o campo gerado pela bobina.',
         simple: '🧲 O ferro é um "autoestrada" para o campo magnético. O ar é um "caminho de terra" — muito mais difícil de atravessar!'
     },
@@ -30,7 +30,7 @@ const POPUP_DB: Record<string, ComponentInfo> = {
         title: 'Campo Magnético (B)',
         sub: 'Linhas de Força Magnética',
         mat: 'Campo invisível · unidade: Tesla (T)',
-        param: 'B = μ₀·μᵣ·N·I / ℓ · linhas saem do polo N, entram no polo S',
+        param: 'B = μ₀ · μᵣ · (N/ℓ) · I · linhas saem do polo N, entram no polo S',
         fn: 'O campo magnético é a "zona de influência" do eletroímã — a região onde ele consegue atrair objetos. Ele existe no espaço ao redor da bobina.',
         simple: '🌀 Imagine o campo como ondas saindo de uma pedra jogada na água — mas em vez de molhar, elas atraem metais!'
     },
@@ -187,7 +187,7 @@ export const PhysicsTutorial: React.FC = () => {
     const s3GapM = s3Gap / 1000;
     const s3Force = (mu0 * Math.pow(s3Turns * s3Current, 2) * A_core / (2 * Math.pow(s3GapM, 2)));
     const s3JoulePower = 38.0 * s3Current * s3Current; // approximate on 38 ohm
-    const s3JoulePct = Math.min(100, (s3JoulePower / (38 * 25)) * 100);
+    const s3JoulePct = Math.min(100, (s3JoulePower / 150) * 100);
 
     // Open inspection sheet handler
     const triggerInspect = (id: string, e: React.MouseEvent) => {
@@ -261,17 +261,17 @@ export const PhysicsTutorial: React.FC = () => {
         if (!ctx) return;
 
         const dpr = window.devicePixelRatio || 1;
-        let w = cv.parentElement?.clientWidth || 800;
-        let h = cv.parentElement?.clientHeight || 600;
+        const w = cv.parentElement?.clientWidth || 800;
+        const h = cv.parentElement?.clientHeight || 600;
         cv.width = w * dpr; cv.height = h * dpr;
         cv.style.width = w + 'px'; cv.style.height = h + 'px';
         ctx.scale(dpr, dpr);
 
-        let TURNS = 7;
-        let COIL_CX = w * 0.75;
-        let COIL_CY = h * 0.5;
-        let COIL_W = 160;
-        let COIL_H = 20;
+        const TURNS = 7;
+        const COIL_CX = w * 0.75;
+        const COIL_CY = h * 0.5;
+        const COIL_W = 160;
+        const COIL_H = 20;
 
         const particles = Array.from({ length: 40 }, (_, i) => ({
             t: i / 40,
@@ -1078,7 +1078,7 @@ export const PhysicsTutorial: React.FC = () => {
                                 <div className="hero-stat-label">Espiras na Bobina Real</div>
                             </div>
                             <div className="hero-stat-card">
-                                <div className="hero-stat-val">21ms</div>
+                                <div className="hero-stat-val">{s2TauMs}ms</div>
                                 <div className="hero-stat-label">Tempo de Resposta (τ)</div>
                             </div>
                         </div>
