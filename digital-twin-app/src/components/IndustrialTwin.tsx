@@ -347,7 +347,8 @@ export const IndustrialTwin: React.FC = () => {
             if (uiField1Ref.current) uiField1Ref.current.style.opacity = forcePercent.toString();
             if (uiField2Ref.current) uiField2Ref.current.style.opacity = (forcePercent * 0.7).toString();
             if (uiPadRef.current) {
-                const padMovement = forcePercent * 18;
+                const visual_g = sys.g * 4; // Map 0.1-5.0mm to 0.4-20px
+                const padMovement = visual_g * (1 - forcePercent);
                 uiPadRef.current.style.transform = `translateY(${padMovement}px)`;
             }
 

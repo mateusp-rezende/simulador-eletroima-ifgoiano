@@ -1905,9 +1905,9 @@
             el.uiField1.style.opacity = forcePercent;
             el.uiField2.style.opacity = forcePercent * 0.7;
 
-            // 4. Pad Movement (Attracted downwards towards disc)
-            // Normal gap is 0. Pulls down max 18px to touch the disc.
-            const padMovement = forcePercent * 18;
+            // 4. Pad Movement (Attracted upwards towards stator)
+            const visual_g = sys.g * 4; // Map 0.1-5.0mm to 0.4-20px
+            const padMovement = visual_g * (1 - forcePercent);
             el.uiPad.style.transform = `translateY(${padMovement}px)`;
         }
 
