@@ -38,10 +38,10 @@ const COMPONENT_DB: Record<string, { title: string; material: string; param: str
         desc: 'Peça móvel atraída eletromagneticamente. A força segue a Lei do Quadrado Inverso: dobrar o entreferro (g) reduz a força a ¼. O revestimento de fricção converte energia cinética em calor, parando a mesa.'
     },
     disc: {
-        title: 'Disco do Freio (Rotor)',
-        material: 'Liga Ferro-Cromo · Alta dissipação térmica',
-        param: 'ω = RPM·2π/60 rad/s · τ = I·α',
-        desc: 'Fixo ao mecanismo de translação da mesa de Raio-X. Gira livremente quando o freio está desenergizado. Ao ser pressionado pela armadura, o torque de frenagem τ = F·r·μ desacelera o sistema até imobilidade absoluta.'
+        title: 'Bloco de Ferro (Carga)',
+        material: 'Aço Carbono / Ferro Doce (Alta Permeabilidade Magnética)',
+        param: 'F_maxwell = (N·I)² · μ₀ · A / (2g²)',
+        desc: 'Massa ferromagnética usada como carga no experimento. Quando o eletroímã é energizado, a indução magnética no núcleo atrai este bloco de ferro para cima, colando-o ao estator e travando o movimento.'
     },
     shaft: {
         title: 'Eixo de Transmissão',
@@ -305,12 +305,14 @@ export const IndustrialTwin: React.FC = () => {
 
             // ── FMEA Checks
             const fmeaAlerts: Array<{ type: string; code: string; msg: string }> = [];
-            if (sys.R > 60) fmeaAlerts.push({ type: 'warn', code: 'FMEA-01', msg: `R=${sys.R.toFixed(0)}Ω excessivo — aquecimento Joule. Capacidade máxima de corrente reduzida em ${((1 - 24 / sys.R / (24 / DEFAULTS.R)) * 100).toFixed(0)}% · Risco: freio escorregando.` });
-            if (sys.R > 80) fmeaAlerts.push({ type: 'error', code: 'FMEA-02', msg: `CRÍTICO: R=${sys.R.toFixed(0)}Ω · I_max=${(24 / sys.R).toFixed(3)}A insuficiente. Mesa pode se mover com freio "ativo".` });
-            if (sys.g > 2.0) fmeaAlerts.push({ type: 'warn', code: 'FMEA-03', msg: `Entreferro g=${sys.g.toFixed(1)}mm — desgaste crítico da lona. Força ÷${((sys.g / DEFAULTS.g) ** 2).toFixed(1)}x vs. nominal.` });
-            if (sys.g > 3.5) fmeaAlerts.push({ type: 'error', code: 'FMEA-04', msg: `FALHA MECÂNICA: g=${sys.g.toFixed(1)}mm. Substituição imediata da lona necessária.` });
-            if (sys.N < 150) fmeaAlerts.push({ type: 'warn', code: 'FMEA-05', msg: `N=${sys.N} espiras insuficientes. Torque de frenagem comprometido.` });
-            if (forcePercent > 0.8 && sys.rpm > 800) fmeaAlerts.push({ type: 'warn', code: 'FMEA-06', msg: `Alta energia de frenagem: Q = ½·J·ω². Risco de sobreaquecimento do disco.` });
+            const joulePower = sys.R * sys.I * sys.I;
+            
+            if (sys.R > 60) fmeaAlerts.push({ type: 'warn', code: 'FMEA-01', msg: `R=${sys.R.toFixed(0)}Ω excessiva (aquecimento Joule). Corrente máxima caiu ${((1 - 24 / sys.R / (24 / DEFAULTS.R)) * 100).toFixed(0)}% · Risco: bobina enfraquecida.` });
+            if (sys.R > 80) fmeaAlerts.push({ type: 'error', code: 'FMEA-02', msg: `CRÍTICO: R=${sys.R.toFixed(0)}Ω · I_max=${(24 / sys.R).toFixed(3)}A insuficiente. Eletroímã fraco: a carga de ferro pode despencar.` });
+            if (sys.g > 2.0) fmeaAlerts.push({ type: 'warn', code: 'FMEA-03', msg: `Entreferro g=${sys.g.toFixed(1)}mm excessivo (afastamento físico). Força ÷${((sys.g / DEFAULTS.g) ** 2).toFixed(1)}x menor vs. nominal.` });
+            if (sys.g > 3.5) fmeaAlerts.push({ type: 'error', code: 'FMEA-04', msg: `FALHA MECÂNICA: g=${sys.g.toFixed(1)}mm muito amplo. A atração falhará por falta de campo magnético.` });
+            if (sys.N < 150) fmeaAlerts.push({ type: 'warn', code: 'FMEA-05', msg: `N=${sys.N} espiras insuficientes. Força magnetomotriz (FMM = N·I) enfraquecida.` });
+            if (joulePower > 15.0) fmeaAlerts.push({ type: 'warn', code: 'FMEA-06', msg: `Aquecimento crítico: dissipação Joule de ${joulePower.toFixed(1)}W. Risco de queima da bobina por superaquecimento.` });
 
             const newFmeaKeys = fmeaAlerts.map(a => a.code).sort().join('|');
             if (newFmeaKeys !== activeFmeaKeys) {
@@ -333,12 +335,7 @@ export const IndustrialTwin: React.FC = () => {
 
             // ── SVG visual animation loops
             if (uiDiscRef.current) {
-                if (sys.rpm > 0) {
-                    const duration = 60 / sys.rpm;
-                    uiDiscRef.current.style.animation = `spinning-disc ${duration}s linear infinite`;
-                } else {
-                    uiDiscRef.current.style.animation = 'none';
-                }
+                uiDiscRef.current.style.animation = 'none';
             }
             if (uiCoilRef.current) {
                 const glow = forcePercent * 20;
@@ -347,13 +344,16 @@ export const IndustrialTwin: React.FC = () => {
             if (uiField1Ref.current) uiField1Ref.current.style.opacity = forcePercent.toString();
             if (uiField2Ref.current) uiField2Ref.current.style.opacity = (forcePercent * 0.7).toString();
             if (uiPadRef.current) {
-                const visual_g = sys.g * 4; // Map 0.1-5.0mm to 0.4-20px
-                const padMovement = visual_g * (1 - forcePercent);
-                uiPadRef.current.style.transform = `translateY(${padMovement}px)`;
+                uiPadRef.current.style.transform = 'none';
+            }
+            if (uiDiscRef.current) {
+                const visual_g = sys.g * 8; // Map 0.1-5.0mm to 0.8-40px
+                const discMovement = -55 + visual_g * (1 - forcePercent);
+                uiDiscRef.current.style.transform = `translateY(${discMovement}px)`;
             }
 
             // ── Draw Macro View
-            if (macroCanvasRef.current) {
+            if (macroCanvasRef.current && macroState !== 'collapsed' && detailState !== 'maximized') {
                 const cv = macroCanvasRef.current;
                 const mCtx = cv.getContext('2d');
                 if (mCtx) {
@@ -587,7 +587,7 @@ export const IndustrialTwin: React.FC = () => {
             sys.history.push({ v: sys.targetV, i: sys.I, r: sys.rpm, f: forcePercent * 100 });
             if (sys.history.length > 100) sys.history.shift();
 
-            if (liveChartRef.current) {
+            if (liveChartRef.current && liveChartRef.current.clientWidth > 0 && liveChartRef.current.clientHeight > 0) {
                 const cv = liveChartRef.current;
                 const cCtx = cv.getContext('2d');
                 if (cCtx) {
@@ -906,7 +906,7 @@ export const IndustrialTwin: React.FC = () => {
                     </div>
 
                     {/* Mechanical Visual Assembly wrapper */}
-                    <div className="brake-assembly-wrapper">
+                    <div className={`brake-assembly-wrapper ${detailState === 'maximized' ? 'assembly-maximized' : ''}`}>
                         {/* Electromagnet & Coil block */}
                         <div 
                             className={`electromagnet-coil-block interactive-clickable-part ${selectedComponent === 'core' ? 'part-selected-outline' : ''}`}
@@ -943,15 +943,12 @@ export const IndustrialTwin: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Shaft and rotating disc */}
+                        {/* Bloco de Ferro (Carga) */}
                         <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', height: '200px' }}>
-                            <div 
-                                className={`steel-shaft interactive-clickable-part ${selectedComponent === 'shaft' ? 'part-selected-outline' : ''}`}
-                                onClick={(e) => { e.stopPropagation(); inspectComponent('shaft', e.clientX, e.clientY); }}
-                            />
                             <div 
                                 ref={uiDiscRef}
                                 className={`rotor-disc interactive-clickable-part ${selectedComponent === 'disc' ? 'part-selected-outline' : ''}`}
+                                style={{ animation: 'none' }}
                                 onClick={(e) => { e.stopPropagation(); inspectComponent('disc', e.clientX, e.clientY); }}
                             />
                         </div>
@@ -962,7 +959,7 @@ export const IndustrialTwin: React.FC = () => {
                             <span>Eletroímã (Fixo)</span>
                         </div>
                         <div className="mechanical-label" style={{ left: '-192px', top: '160px' }}>
-                            <span>Rotor (Eixo Móvel)</span>
+                            <span>Bloco de Ferro (Carga)</span>
                             <div style={{ width: '48px', height: '1px', backgroundColor: '#64748b' }}></div>
                         </div>
                     </div>

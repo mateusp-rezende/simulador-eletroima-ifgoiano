@@ -753,10 +753,15 @@ body.perf-mode * {
     flex-direction: column;
     align-items: center;
     margin-top: 80px;
-    transform: scale(1.2);
+    transform: scale(1.6);
     transition: transform 0.3s ease;
     user-select: none;
     z-index: 2;
+}
+
+.brake-assembly-wrapper.assembly-maximized {
+    transform: scale(2.2);
+    margin-top: 110px;
 }
 
 @media (max-width: 1024px) {
@@ -896,14 +901,9 @@ body.perf-mode * {
 .rotor-disc {
     width: 240px;
     height: 40px;
-    background: repeating-linear-gradient(90deg,
-            #64748b,
-            #64748b 10px,
-            #475569 10px,
-            #475569 20px);
+    background: linear-gradient(90deg, #475569, #94a3b8, #475569);
     border-radius: 8px;
-    border-top: 2px solid #cbd5e1;
-    border-bottom: 3px solid #0f172a;
+    border: 2px solid #cbd5e1;
     position: absolute;
     top: 130px;
     left: -110px;

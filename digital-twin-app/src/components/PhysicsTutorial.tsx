@@ -730,83 +730,139 @@ export const PhysicsTutorial: React.FC = () => {
             const fNorm = Math.min(1, s3Force / 1000);
             const alpha = s3Current / 5;
 
-            // Electromagnet body
+            // U-Shaped Electromagnet Core
             const emX = 30, emY = SZ / 2 - 55;
-            ctx.fillStyle = '#0e1d34';
-            ctx.beginPath(); ctx.roundRect(emX, emY, 100, 110, 8); ctx.fill();
-            ctx.strokeStyle = `rgba(34,211,238,${0.2 + alpha * 0.5})`; ctx.lineWidth = 1.5; ctx.stroke();
-
-            // Windings loops
-            for (let i = 0; i < 5; i++) {
-                const wy = emY + 15 + i * 16;
-                ctx.beginPath();
-                ctx.ellipse(emX + 50, wy, 32, 6, 0, 0, Math.PI * 2);
-                ctx.strokeStyle = '#d97706'; ctx.lineWidth = 3; ctx.stroke();
-            }
-
-            // Metal Core
-            ctx.fillStyle = 'rgba(30,58,95,0.9)';
-            ctx.fillRect(emX + 38, emY + 5, 24, 100);
-            ctx.strokeStyle = 'rgba(100,160,220,0.3)'; ctx.lineWidth = 1; ctx.stroke();
-
-            ctx.fillStyle = '#22d3ee'; ctx.font = '700 9px JetBrains Mono'; ctx.textAlign = 'center';
-            ctx.fillText(`N=${s3Turns}`, emX + 50, emY - 8);
-            ctx.fillStyle = '#fbbf24';
-            ctx.fillText(`I=${s3Current.toFixed(2)}A`, emX + 50, emY - 18);
-
-            // Core poles & gap line
-            const poleX = emX + 100;
-            const gWidth = Math.max(6, Math.min(120, s3Gap * 14));
-
+            const coreThick = 24; // thickness of core arms
+            
             ctx.save();
-            ctx.strokeStyle = 'rgba(251,191,36,0.5)'; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
-            ctx.beginPath(); ctx.moveTo(poleX, SZ / 2 - 30); ctx.lineTo(poleX + gWidth, SZ / 2 - 30); ctx.stroke();
-            ctx.setLineDash([]);
-            ctx.fillStyle = 'rgba(251,191,36,0.7)'; ctx.font = '700 9px JetBrains Mono'; ctx.textAlign = 'center';
-            ctx.fillText(`g = ${s3Gap.toFixed(1)}mm`, poleX + gWidth / 2, SZ / 2 - 36);
+            ctx.fillStyle = 'rgba(30,58,95,0.9)';
+            ctx.strokeStyle = 'rgba(100,160,220,0.45)';
+            ctx.lineWidth = 1.5;
+            
+            // Draw U-shape path
+            ctx.beginPath();
+            // Left vertical base
+            ctx.rect(emX, emY + 10, coreThick, 90);
+            // Top horizontal arm
+            ctx.rect(emX + coreThick, emY + 10, 80 - coreThick, coreThick);
+            // Bottom horizontal arm
+            ctx.rect(emX + coreThick, emY + 76, 80 - coreThick, coreThick);
+            ctx.fill();
+            ctx.stroke();
+            
+            // Copper windings wrapped around the left vertical base of the U-core
+            const turnsCount = 6;
+            const coilHeight = 80;
+            for (let i = 0; i < turnsCount; i++) {
+                const wy = emY + 20 + i * (coilHeight / turnsCount);
+                ctx.beginPath();
+                // Draw wire loops wrapping around the core base
+                ctx.ellipse(emX + coreThick / 2, wy, coreThick / 2 + 6, 4, 0, 0, Math.PI * 2);
+                ctx.strokeStyle = '#d97706'; ctx.lineWidth = 4; ctx.stroke();
+                ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 1.5; ctx.stroke();
+            }
             ctx.restore();
 
-            // Field flux animations
+            // Core poles & gap markers
+            const poleX = emX + 80;
+            const gWidth = Math.max(0, s3Gap * 14); // Map 0.1-5.0mm to 1.4-70px
+            const objBaseX = poleX + gWidth;
+
+            // Draw gap measurement guidelines
+            if (gWidth > 5) {
+                ctx.save();
+                ctx.strokeStyle = 'rgba(251,191,36,0.35)'; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+                ctx.beginPath(); ctx.moveTo(poleX, SZ / 2 - 30); ctx.lineTo(objBaseX, SZ / 2 - 30); ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillStyle = 'rgba(251,191,36,0.85)'; ctx.font = '700 9px JetBrains Mono'; ctx.textAlign = 'center';
+                ctx.fillText(`g = ${s3Gap.toFixed(1)}mm`, poleX + gWidth / 2, SZ / 2 - 36);
+                ctx.restore();
+            }
+
+            // Magnetic flux closed-loop animation
             if (alpha > 0.02) {
-                for (let fl = 0; fl < 4; fl++) {
-                    const fy = SZ / 2 - 24 + fl * 16;
+                const numLoops = Math.min(5, Math.max(1, Math.round(alpha * 5)));
+                for (let i = 0; i < numLoops; i++) {
                     ctx.save();
-                    ctx.strokeStyle = `rgba(34,211,238,${alpha * 0.55})`;
-                    ctx.lineWidth = 1.2; ctx.setLineDash([4, 6]);
+                    ctx.strokeStyle = `rgba(34,211,238,${alpha * 0.65 * (1 - i * 0.15)})`;
+                    ctx.lineWidth = 1.8;
+                    ctx.setLineDash([6, 8]);
                     ctx.lineDashOffset = -dash;
-                    ctx.beginPath(); ctx.moveTo(poleX, fy); ctx.lineTo(poleX + gWidth, fy); ctx.stroke();
+                    
+                    // Draw a closed loop path through core and armature
+                    ctx.beginPath();
+                    // Top horizontal segment (through top arm and gap)
+                    ctx.moveTo(emX + coreThick / 2, emY + 10 + coreThick / 2);
+                    ctx.lineTo(objBaseX + 10, emY + 10 + coreThick / 2);
+                    // Vertical segment down through the iron plate
+                    ctx.lineTo(objBaseX + 10, emY + 76 + coreThick / 2);
+                    // Bottom horizontal segment (back through gap and arm)
+                    ctx.lineTo(emX + coreThick / 2, emY + 76 + coreThick / 2);
+                    // Vertical segment up through the base
+                    ctx.closePath();
+                    
+                    ctx.stroke();
                     ctx.restore();
                 }
             }
 
-            // Target Steel armature block
-            const objBaseX = poleX + 6 + gWidth;
-            ctx.fillStyle = `rgba(30,50,80,${0.5 + fNorm * 0.4})`;
-            ctx.beginPath(); ctx.roundRect(objBaseX, SZ / 2 - 50, 70, 100, 6); ctx.fill();
-            ctx.strokeStyle = `rgba(100,140,200,${0.3 + fNorm * 0.5})`; ctx.lineWidth = 1.5; ctx.stroke();
+            // Target Steel armature block (the iron plate closing the magnetic circuit)
+            ctx.save();
+            ctx.fillStyle = `rgba(148,163,184,${0.6 + fNorm * 0.4})`;
+            ctx.beginPath(); ctx.roundRect(objBaseX, emY + 5, 20, 100, 4); ctx.fill();
+            ctx.strokeStyle = `rgba(203,213,225,${0.3 + fNorm * 0.7})`; ctx.lineWidth = 2; ctx.stroke();
             
-            ctx.fillStyle = '#374151';
-            ctx.fillRect(objBaseX, SZ / 2 - 50, 8, 100);
+            // Friction lining / contact face
+            ctx.fillStyle = '#475569';
+            ctx.fillRect(objBaseX, emY + 5, 4, 100);
             
-            ctx.fillStyle = 'rgba(139,148,158,0.6)'; ctx.font = '700 8px JetBrains Mono'; ctx.textAlign = 'center';
-            ctx.fillText('FERRO', objBaseX + 35, SZ / 2 + 5);
+            ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.font = '700 8px JetBrains Mono'; ctx.textAlign = 'center';
+            ctx.fillText('FERRO', objBaseX + 10, SZ / 2 + 5);
+            ctx.restore();
 
-            // Force vector arrow
+            // Polarity labels on U-core tips
+            if (alpha > 0.05) {
+                ctx.save();
+                ctx.fillStyle = '#22d3ee'; ctx.font = '700 11px JetBrains Mono'; ctx.textAlign = 'center';
+                ctx.fillText('N', poleX - 12, emY + 26);
+                ctx.fillStyle = '#fb7185';
+                ctx.fillText('S', poleX - 12, emY + 92);
+                ctx.restore();
+            }
+
+            // Contact "Pregação" Glow (Visual spark/glow when fully sticking/magnetic contact)
+            if (s3Gap < 0.25 && s3Current > 0.1) {
+                ctx.save();
+                ctx.fillStyle = 'rgba(251,191,36,0.85)';
+                ctx.shadowColor = '#fbbf24';
+                ctx.shadowBlur = 8;
+                // Top contact point glow
+                ctx.beginPath(); ctx.arc(poleX, emY + 10 + coreThick / 2, 4.5, 0, Math.PI * 2); ctx.fill();
+                // Bottom contact point glow
+                ctx.beginPath(); ctx.arc(poleX, emY + 76 + coreThick / 2, 4.5, 0, Math.PI * 2); ctx.fill();
+                ctx.restore();
+            }
+
+            // Force vector arrow showing mechanical attraction pulling plate towards core
             if (s3Force > 0.1) {
                 const aLen = Math.min(80, fNorm * 60 + 10);
                 ctx.save();
                 ctx.strokeStyle = `rgba(251,113,133,${0.5 + fNorm * 0.5})`; ctx.lineWidth = 2.5;
                 ctx.beginPath();
-                ctx.moveTo(objBaseX + 30, SZ / 2); ctx.lineTo(objBaseX + 30 - aLen, SZ / 2); ctx.stroke();
+                ctx.moveTo(objBaseX + 10, emY + 50);
+                ctx.lineTo(objBaseX + 10 - aLen, emY + 50);
+                ctx.stroke();
+                
                 ctx.fillStyle = `rgba(251,113,133,${0.5 + fNorm * 0.5})`;
                 ctx.beginPath();
-                ctx.moveTo(objBaseX + 30 - aLen, SZ / 2);
-                ctx.lineTo(objBaseX + 30 - aLen + 12, SZ / 2 - 6);
-                ctx.lineTo(objBaseX + 30 - aLen + 12, SZ / 2 + 6);
+                ctx.moveTo(objBaseX + 10 - aLen, emY + 50);
+                ctx.lineTo(objBaseX + 10 - aLen + 10, emY + 50 - 5);
+                ctx.lineTo(objBaseX + 10 - aLen + 10, emY + 50 + 5);
                 ctx.closePath(); ctx.fill();
+                
                 ctx.font = '700 10px JetBrains Mono'; ctx.fillStyle = '#fb7185';
                 ctx.textAlign = 'center';
-                ctx.fillText(`F=${s3Force.toFixed(1)}N`, objBaseX + 30 - aLen / 2, SZ / 2 - 12);
+                ctx.fillText(`F = ${s3Force.toFixed(1)} N`, objBaseX + 10 - aLen / 2, emY + 40);
                 ctx.restore();
             }
 

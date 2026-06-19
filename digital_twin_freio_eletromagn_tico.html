@@ -164,7 +164,7 @@
             flex-direction: column;
             align-items: center;
             margin-top: 80px;
-            transform: scale(1.2);
+            transform: scale(1.6);
             transition: transform 0.3s ease;
         }
 
@@ -729,14 +729,9 @@
         .disc {
             width: 240px;
             height: 40px;
-            background: repeating-linear-gradient(90deg,
-                    #64748b,
-                    #64748b 10px,
-                    #475569 10px,
-                    #475569 20px);
+            background: linear-gradient(90deg, #475569, #94a3b8, #475569);
             border-radius: 8px;
-            border-top: 2px solid #cbd5e1;
-            border-bottom: 3px solid #0f172a;
+            border: 2px solid #cbd5e1;
             position: absolute;
             top: 130px;
             left: -110px;
@@ -1015,12 +1010,10 @@
                             </div>
                         </div>
 
-                        <!-- Shaft and Disc -->
+                        <!-- Bloco de Ferro (Carga) -->
                         <div style="position: relative; display: flex; justify-content: center; height: 200px;">
-                            <div id="svgShaft" class="shaft z-0 comp-clickable" onclick="inspect('shaft', event)"
-                                style="position: relative; z-index: 0;"></div>
                             <div id="svgDisc" class="disc z-10 comp-clickable" onclick="inspect('disc', event)"
-                                style="z-index: 10;"></div>
+                                style="z-index: 10; animation: none;"></div>
                         </div>
 
                         <!-- Labels -->
@@ -1034,8 +1027,7 @@
                         <div
                             style="position: absolute; left: -192px; top: 160px; display: flex; align-items: center; gap: 8px; pointer-events: none;">
                             <span
-                                style="font-size: 12px; color: #94a3b8; font-family: 'JetBrains Mono', monospace;">Rotor
-                                (Eixo Móvel)</span>
+                                style="font-size: 12px; color: #94a3b8; font-family: 'JetBrains Mono', monospace;">Bloco de Ferro (Carga)</span>
                             <div style="width: 48px; height: 1px; background-color: #64748b;"></div>
                         </div>
 
@@ -1353,10 +1345,10 @@
                 desc: 'Peça móvel atraída eletromagneticamente. A força segue a Lei do Quadrado Inverso: dobrar o entreferro (g) reduz a força a ¼. O revestimento de fricção converte energia cinética em calor, parando a mesa.'
             },
             disc: {
-                title: 'Disco do Freio (Rotor)',
-                material: 'Liga Ferro-Cromo · Alta dissipação térmica',
-                param: 'ω = RPM·2π/60 rad/s · τ = I·α',
-                desc: 'Fixo ao mecanismo de translação da mesa de Raio-X. Gira livremente quando o freio está desenergizado. Ao ser pressionado pela armadura, o torque de frenagem τ = F·r·μ desacelera o sistema até imobilidade absoluta.'
+                title: 'Bloco de Ferro (Carga)',
+                material: 'Aço Carbono / Ferro Doce (Alta Permeabilidade Magnética)',
+                param: 'F_maxwell = (N·I)² · μ₀ · A / (2g²)',
+                desc: 'Massa ferromagnética usada como carga no experimento. Quando o eletroímã é energizado, a indução magnética no núcleo atrai este bloco de ferro para cima, colando-o ao estator e travando o movimento.'
             },
             shaft: {
                 title: 'Eixo de Transmissão',
@@ -1778,12 +1770,14 @@
         let activeFMEA = new Set();
         function checkFMEA(forcePercent) {
             const alerts = [];
-            if (sys.R > 60) alerts.push({ type: 'warn', code: 'FMEA-01', msg: `R=${sys.R.toFixed(0)}Ω excessivo — simula aquecimento Joule. Corrente caiu ${((1 - 24 / sys.R / (24 / DEFAULTS.R)) * 100).toFixed(0)}% · Risco: freio escorregando.` });
-            if (sys.R > 80) alerts.push({ type: 'error', code: 'FMEA-02', msg: `CRÍTICO: R=${sys.R.toFixed(0)}Ω · I_max=${(24 / sys.R).toFixed(3)}A insuficiente. Mesa pode se mover com freio "ativo".` });
-            if (sys.g > 2.0) alerts.push({ type: 'warn', code: 'FMEA-03', msg: `Entreferro g=${sys.g.toFixed(1)}mm — desgaste crítico da lona. Força ÷${((sys.g / DEFAULTS.g) ** 2).toFixed(1)}x vs. nominal.` });
-            if (sys.g > 3.5) alerts.push({ type: 'error', code: 'FMEA-04', msg: `FALHA MECÂNICA: g=${sys.g.toFixed(1)}mm. Substituição imediata da lona necessária.` });
-            if (sys.N < 150) alerts.push({ type: 'warn', code: 'FMEA-05', msg: `N=${sys.N} espiras insuficientes. Torque de frenagem comprometido.` });
-            if (forcePercent > 0.8 && sys.rpm > 800) alerts.push({ type: 'warn', code: 'FMEA-06', msg: `Alta energia de frenagem: Q = ½·J·ω². Risco de sobreaquecimento do disco.` });
+            const joulePower = sys.R * sys.I * sys.I;
+            
+            if (sys.R > 60) alerts.push({ type: 'warn', code: 'FMEA-01', msg: `R=${sys.R.toFixed(0)}Ω excessiva (aquecimento Joule). Corrente máxima caiu ${((1 - 24 / sys.R / (24 / DEFAULTS.R)) * 100).toFixed(0)}% · Risco: bobina enfraquecida.` });
+            if (sys.R > 80) alerts.push({ type: 'error', code: 'FMEA-02', msg: `CRÍTICO: R=${sys.R.toFixed(0)}Ω · I_max=${(24 / sys.R).toFixed(3)}A insuficiente. Eletroímã fraco: a carga de ferro pode despencar.` });
+            if (sys.g > 2.0) alerts.push({ type: 'warn', code: 'FMEA-03', msg: `Entreferro g=${sys.g.toFixed(1)}mm excessivo (afastamento físico). Força ÷${((sys.g / DEFAULTS.g) ** 2).toFixed(1)}x menor vs. nominal.` });
+            if (sys.g > 3.5) alerts.push({ type: 'error', code: 'FMEA-04', msg: `FALHA MECÂNICA: g=${sys.g.toFixed(1)}mm muito amplo. A atração falhará por falta de campo magnético.` });
+            if (sys.N < 150) alerts.push({ type: 'warn', code: 'FMEA-05', msg: `N=${sys.N} espiras insuficientes. Força magnetomotriz (FMM = N·I) enfraquecida.` });
+            if (joulePower > 15.0) alerts.push({ type: 'warn', code: 'FMEA-06', msg: `Aquecimento crítico: dissipação Joule de ${joulePower.toFixed(1)}W. Risco de queima da bobina por superaquecimento.` });
 
             const newK = alerts.map(a => a.code).sort().join('|');
             const curK = [...activeFMEA].sort().join('|');
@@ -1889,13 +1883,7 @@
         //  DETAIL VISUAL RENDERER (HTML Component animation)
         // ═══════════════════════════════════════════════════════════════════════════
         function updateSVG(forcePercent) {
-            // 1. Disc Speed via CSS Animation duration
-            if (sys.rpm > 0) {
-                const duration = 60 / sys.rpm;
-                el.uiDisc.style.animation = `spin ${duration}s linear infinite`;
-            } else {
-                el.uiDisc.style.animation = 'none';
-            }
+            el.uiDisc.style.animation = 'none';
 
             // 2. Coil Glow (Heat/Energy)
             const glow = forcePercent * 20;
@@ -1905,10 +1893,13 @@
             el.uiField1.style.opacity = forcePercent;
             el.uiField2.style.opacity = forcePercent * 0.7;
 
-            // 4. Pad Movement (Attracted upwards towards stator)
-            const visual_g = sys.g * 4; // Map 0.1-5.0mm to 0.4-20px
-            const padMovement = visual_g * (1 - forcePercent);
-            el.uiPad.style.transform = `translateY(${padMovement}px)`;
+            // 4. Pad Movement (Static)
+            el.uiPad.style.transform = 'none';
+
+            // 5. Iron Block Movement (Attracted upwards towards magnet)
+            const visual_g = sys.g * 8; // Map 0.1-5.0mm to 0.8-40px
+            const discMovement = -55 + visual_g * (1 - forcePercent);
+            el.uiDisc.style.transform = `translateY(${discMovement}px)`;
         }
 
         // ═══════════════════════════════════════════════════════════════════════════
